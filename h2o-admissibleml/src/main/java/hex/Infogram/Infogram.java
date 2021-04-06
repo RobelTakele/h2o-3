@@ -237,6 +237,7 @@ public class Infogram extends ModelBuilder<hex.Infogram.InfogramModel, hex.Infog
         DKV.remove(_baseOrSensitiveFrame._key);
         removeFromDKV(_generatedFrameKeys);
         final List<Key> keep = new ArrayList<>();
+
         if (model != null) {
           keepFrameKeys(keep, _cmiRelKey);
         }
