@@ -36,7 +36,6 @@ from ..model.coxph import H2OCoxPHModel
 from ..model.coxph import H2OCoxPHMojoModel
 from ..model.segment_models import H2OSegmentModels
 
-
 class EstimatorAttributeError(AttributeError):
     def __init__(self, obj, method):
         super(AttributeError, self).__init__("No {} method for {}".format(method, obj.__class__.__name__))
@@ -222,7 +221,7 @@ class H2OEstimator(ModelBase):
                                             required=self._options_.get('requires_training_frame', True) and not has_default_training_frame)
         validation_frame = H2OFrame._validate(validation_frame, 'validation_frame')
         assert_is_type(y, None, int, str)
-        assert_is_type(x, None, int, str, [str, int], {str, int})
+        assert_is_type(x, None, int, str, H2OEstimator, [str, int], {str, int})
         assert_is_type(ignored_columns, None, [str, int], {str, int})
         assert_is_type(offset_column, None, int, str)
         assert_is_type(fold_column, None, int, str)
@@ -280,6 +279,8 @@ class H2OEstimator(ModelBase):
                         ignored_columns_set.add(ic)
             if x is None:
                 xset = set(names) - {y} - ignored_columns_set
+            elif hasattr(x, 'algo') and (x.algo=='infogram'):
+                xset = set(x._model_json["output"]["admissible_features"])
             else:
                 xset = set()
                 if is_type(x, int, str): x = [x]

@@ -65,8 +65,8 @@ from h2o.model.multinomial import H2OMultinomialModel
 from h2o.model.ordinal import H2OOrdinalModel
 from h2o.model.regression import H2ORegressionModel
 from h2o.estimators import H2OGradientBoostingEstimator, H2ODeepLearningEstimator, H2OGeneralizedLinearEstimator, \
-    H2OGeneralizedAdditiveEstimator, H2OKMeansEstimator, H2ONaiveBayesEstimator, H2ORandomForestEstimator, \
-    H2OPrincipalComponentAnalysisEstimator
+    H2OGeneralizedAdditiveEstimator, H2OKMeansEstimator, H2ONaiveBayesEstimator, H2OInfogram, \
+    H2ORandomForestEstimator, H2OPrincipalComponentAnalysisEstimator
 from h2o.utils.typechecks import is_type
 from h2o.utils.shared_utils import temp_ctr  # unused in this file  but exposed here for symmetry with rest_ctr
 
@@ -599,7 +599,7 @@ def run_tests(tests, run_in_isolation=True, init_options={}):
     #flatten in case of nested tests/test suites
     all_tests = reduce(lambda l, r: (l.extend(r) if isinstance(r, (list, tuple)) else l.append(r)) or l, tests, [])
     for test in all_tests:
-        if not(hasattr(test, 'tag') and (('H2OANOVAGLM' in test.tag) or ('H2OMaxRGLM' in test.tag))): # exclude AnovaGLM because it does not have score function
+        if not(hasattr(test, 'tag') and (('H2OInfogram' in test.tag) or ('H2OANOVAGLM' in test.tag) or ('H2OMaxRGLM' in test.tag))): # exclude anovaglm, infogram for it has no scoring function
             header = "Running {}{}".format(test.__name__, "" if not hasattr(test, 'tag') else " [{}]".format(test.tag))
             print("\n"+('='*len(header))+"\n"+header)
             if run_in_isolation:
