@@ -963,7 +963,6 @@ class H2OInfogram(H2OEstimator):
                                                                                    " and <= 1."
 
         parms = sup._make_parms(x,y,training_frame, extend_parms_fn = extend_parms, **kwargs)
-
         sup._train(parms, verbose=verbose)
         # can probably get rid of model attributes that Erin does not want here
         return self

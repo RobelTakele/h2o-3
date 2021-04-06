@@ -71,7 +71,7 @@ public class InfogramV3 extends ModelBuilderSchema<Infogram, InfogramV3, Infogra
     // Input fields
     @API(help = "Standardize numeric columns to have zero mean and unit variance", level = API.Level.critical)
     public boolean standardize;
-
+    
     @API(help = "Plug Values (a single row frame containing values that will be used to impute missing values of the" +
             " training/validation frame, use with conjunction missing_values_handling = PlugValues)", 
             direction = API.Direction.INPUT)
@@ -82,7 +82,7 @@ public class InfogramV3 extends ModelBuilderSchema<Infogram, InfogramV3, Infogra
 
     @API(help = "Maximum number of iterations", level = API.Level.secondary)
     public int max_iterations;
-
+    
     @API(help = "Prior probability for y==1. To be used only for logistic regression iff the data has been sampled " +
             "and the mean of response does not reflect reality.", level = API.Level.expert)
     public double prior;
@@ -133,7 +133,7 @@ public class InfogramV3 extends ModelBuilderSchema<Infogram, InfogramV3, Infogra
     @API(help = "predictors that are to be excluded from model due to them being discriminatory or inappropriate for" +
             " whatever reason.", level = API.Level.secondary, gridable=true)
     public String[] protected_columns;
-
+    
     @API(help = "conditional information for core infogram threshold between 0 and 1 that is used to decide whether a " +
             "predictor's conditional information is high enough to be chosen into the admissible feature set.  If not" +
             " set, will default to 0.1.",

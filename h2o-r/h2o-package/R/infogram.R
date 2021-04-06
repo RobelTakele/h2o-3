@@ -260,6 +260,7 @@ h2o.infogram <- function(x,
   if (!missing(infogram_algorithm_params)) {
       model@parameters$infogram_algorithm_params <- list(fromJSON(model@parameters$infogram_algorithm_params))[[1]] #Need the `[[ ]]` to avoid a nested list
   }
+
   infogram_model <- new("H2OInfogram", model_id=model@model_id)       
   model <- infogram_model                
   return(model)

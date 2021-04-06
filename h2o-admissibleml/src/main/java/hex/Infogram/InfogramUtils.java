@@ -264,7 +264,7 @@ public class InfogramUtils {
     for (Key<Frame> oneFrameKey : generatedFrameKeys)
         DKV.remove(oneFrameKey);
   }
-
+  
   /***
    * To calculate the cim, refer to https://h2oai.atlassian.net/browse/PUBDEV-8075 section I step 2 for core infogram,
    * section II step 2 for fair infogram.  Note that the last model is built with all predictors for core infogram or

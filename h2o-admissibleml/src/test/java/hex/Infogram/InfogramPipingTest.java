@@ -49,7 +49,7 @@ public class InfogramPipingTest extends TestUtil {
       Scope.exit();
     }
   }
-
+  
   @Test
   public void testIrisWarn() {
     try {
@@ -109,7 +109,7 @@ public class InfogramPipingTest extends TestUtil {
     }
     assertTrue(warnMessage.size()==expectedWarn);
   }
-
+  
   // Deep example 5
   @Test
   public void testGermanData() {
