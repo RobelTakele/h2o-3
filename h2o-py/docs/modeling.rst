@@ -43,6 +43,12 @@ Supervised
     :show-inheritance:
     :members:
 
+:mod:`H2OInfogram`
+------------------
+.. autoclass:: h2o.estimators.infogram.H2OInfogram
+    :show-inheritance:
+    :members:
+
 :mod:`H2OMaxRGLMEstimator`
 --------------------------
 .. autoclass:: h2o.estimators.maxrglm.H2OMaxRGLMEstimator

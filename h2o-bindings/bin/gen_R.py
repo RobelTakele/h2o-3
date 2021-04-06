@@ -272,6 +272,7 @@ def algo_to_modelname(algo):
     if algo == "targetencoder": return "Target Encoder"
     if algo == "gam": return "Generalized Additive Model"
     if algo == "maxrglm": return "Maximum R GLM"
+    if algo == "infogram": return "Calculate Infogram"
     return algo
 
 
