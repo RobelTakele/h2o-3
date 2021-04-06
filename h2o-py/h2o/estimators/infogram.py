@@ -13,6 +13,8 @@ import h2o
 from h2o.utils.typechecks import assert_is_type, is_type, numeric
 from h2o.frame import H2OFrame
 import numpy as np
+from h2o.utils.ext_dependencies import get_matplotlib_pyplot
+from matplotlib.collections import PolyCollection
 from h2o.estimators.estimator_base import H2OEstimator
 from h2o.exceptions import H2OValueError
 from h2o.frame import H2OFrame
@@ -857,6 +859,72 @@ class H2OInfogram(H2OEstimator):
         assert_is_type(compute_p_values, None, bool)
         self._parms["compute_p_values"] = compute_p_values
 
+
+    def plot(self, valid=False, xval=False, figsize=(10, 10), server=False):
+        """
+        Perform plot function of infogram.  This code is given to us by Tomas Fryda.  By default, it will plot the
+        infogram calculated from training dataset.  Note that the frame rel_cmi_frame contains the following columns:
+        - 0: predictor names
+        - 1: admissible 
+        - 2: admissible index
+        - 3: relevance-index or total information
+        - 4: safety-index or net information, normalized from 0 to 1
+        - 5: safety-index or net information not normalized
+
+        :param self: 
+        :param valid: True if to plot infogram from validation dataset
+        :param xval: True if to plot infogram from cross-validation hold out dataset
+        :return: 
+        """
+
+
+        plt = get_matplotlib_pyplot(server, raise_if_not_available=True)
+
+        rel_cmi_frame = self.get_relevance_cmi_frame(valid=valid, xval=xval)            
+        if rel_cmi_frame is None:
+            raise H2OValueError("Cannot locate the H2OFrame containing the infogram data.")
+
+        rel_cmi_frame_names = rel_cmi_frame.names
+        x_label = rel_cmi_frame_names[3]
+        y_label = rel_cmi_frame_names[4]
+        ig_x_column = 3
+        ig_y_column = 4
+        index_of_admissible = 1
+        features_column = 0
+        x_thresh = self.actual_params["relevance_threshold"]
+        y_thresh = self.actual_params["cmi_threshold"]
+
+        xmax=1.1
+        ymax=1.1
+
+        X = np.array(rel_cmi_frame[ig_x_column].as_data_frame(header=False, use_pandas=False)).astype(float).reshape((-1,))
+        Y = np.array(rel_cmi_frame[ig_y_column].as_data_frame(header=False, use_pandas=False)).astype(float).reshape((-1,))
+        features = np.array(rel_cmi_frame[features_column].as_data_frame(header=False, use_pandas=False)).reshape((-1,))
+        admissible = np.array(rel_cmi_frame[index_of_admissible].as_data_frame(header=False, use_pandas=False)).astype(float).reshape((-1,))
+
+        mask = admissible > 0
+
+        plt.figure(figsize=figsize)
+        plt.grid(True)
+        plt.scatter(X, Y, zorder=10, c=np.where(mask, "black", "gray"))
+        plt.hlines(y_thresh, xmin=x_thresh, xmax=xmax, colors="red", linestyle="dashed")
+        plt.vlines(x_thresh, ymin=y_thresh, ymax=ymax, colors="red", linestyle="dashed")
+        plt.gca().add_collection(PolyCollection(verts=[[(0,0), (0, ymax), (x_thresh, ymax), (x_thresh, y_thresh), (xmax, y_thresh), (xmax, 0)]],
+                                                color="#CC663E", alpha=0.1, zorder=5))
+
+        for i in mask.nonzero()[0]:
+            plt.annotate(features[i], (X[i], Y[i]), xytext=(0, -10), textcoords="offset points",
+                         horizontalalignment='center', verticalalignment='top', color="blue")
+
+        plt.xlim(0, 1.05)
+        plt.ylim(0, 1.05)
+        plt.xlabel(x_label)
+        plt.ylabel(y_label)
+        plt.title("Infogram")
+        fig = plt.gcf()
+        if not server:
+            plt.show()
+        return fig
 
     def get_relevance_cmi_frame(self, valid=False, xval=False):
         """

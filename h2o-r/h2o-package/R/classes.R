@@ -933,18 +933,21 @@ setClassUnion("numericOrNULL", c("numeric", "NULL"))
 #' @slot safety_index_threshold numeric value denoting threshold used for predictor selection
 #' @slot relevance_index_threshold nuermic value denoting threshold used for predictor selection
 #' @slot admissible_score \code{H2OFrame} that contains columns, admissible, admissible_index, relevance, cmi, cmi_raw
+#' @slot admissible_score_valid \code{H2OFrame} that contains columns, admissible, admissible_index, relevance, cmi, cmi_raw from validation set
+#' @slot admissible_score_cv \code{H2OFrame} that contains columns, admissible, admissible_index, relevance, cmi, cmi_raw from cv
 #' @aliases H2OInfogram
 #' @export
 setClass("H2OInfogram", slots = c(model_id='character', algorithm='character', admissible_features='character',
                                   net_information_threshold='numericOrNULL', total_information_threshold='numericOrNULL', 
                                   safety_index_threshold='numericOrNULL', relevance_index_threshold='numericOrNULL', 
-                                  admissible_score='H2OFrame'))
+                                  admissible_score='H2OFrame', admissible_score = "H2OFrame", 
+                                  admissible_score_valid = "H2OFrame", admissible_score_cv = "H2OFrame"))
 
 #' @rdname initialize
-#' @param .object A \code{H2OInfogram} object
+#' @param .object A \code{H2OInfogramModel} object
 #' @param model_id string returned as part of every H2OModel
 #' @param ... parameters to algorithm, admissible_features, ... 
-#' @return A \code{H2OInfogram} object
+#' @return A \code{H2OInfogramModel} object
 #' @export
 setMethod("initialize", "H2OInfogram", function(.Object, model_id, ...) {
   if (!missing(model_id)) {
