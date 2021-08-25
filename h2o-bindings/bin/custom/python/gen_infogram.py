@@ -8,7 +8,7 @@ def update_param(name, param):
     return None  # param untouched
 
 def class_extensions():
-    def plot(self, valid=False, xval=False, figsize=(10, 10), server=False):
+    def plot(self, train=True, valid=False, xval=False, figsize=(10, 10), title="Infogram", legend_on=True, server=False):
         """
         Perform plot function of infogram.  This code is given to us by Tomas Fryda.  By default, it will plot the
         infogram calculated from training dataset.  Note that the frame rel_cmi_frame contains the following columns:
@@ -28,10 +28,19 @@ def class_extensions():
         
         plt = get_matplotlib_pyplot(server, raise_if_not_available=True)
         
-        rel_cmi_frame = self.get_relevance_cmi_frame(valid=valid, xval=xval)            
-        if rel_cmi_frame is None:
-            raise H2OValueError("Cannot locate the H2OFrame containing the infogram data.")
-        
+        if train:
+            rel_cmi_frame = self.get_relevance_cmi_frame()            
+            if rel_cmi_frame is None:
+                raise H2OValueError("Cannot locate the H2OFrame containing the infogram data from training dataset.")
+        if valid:
+            rel_cmi_frame_valid = self.get_relevance_cmi_frame(valid=True)
+            if rel_cmi_frame_valid is None:
+                raise H2OValueError("Cannot locate the H2OFrame containing the infogram data from validation dataset.")
+        if xval:
+            rel_cmi_frame_xval = self.get_relevance_cmi_frame(xval=True)
+            if rel_cmi_frame_xval is None:
+                raise H2OValueError("Cannot locate the H2OFrame containing the infogram data from xval holdout dataset.")
+
         rel_cmi_frame_names = rel_cmi_frame.names
         x_label = rel_cmi_frame_names[3]
         y_label = rel_cmi_frame_names[4]
@@ -49,12 +58,31 @@ def class_extensions():
         Y = np.array(rel_cmi_frame[ig_y_column].as_data_frame(header=False, use_pandas=False)).astype(float).reshape((-1,))
         features = np.array(rel_cmi_frame[features_column].as_data_frame(header=False, use_pandas=False)).reshape((-1,))
         admissible = np.array(rel_cmi_frame[index_of_admissible].as_data_frame(header=False, use_pandas=False)).astype(float).reshape((-1,))
-        
         mask = admissible > 0
         
+        if valid:
+            X_valid = np.array(rel_cmi_frame_valid[ig_x_column].as_data_frame(header=False, use_pandas=False)).astype(float).reshape((-1,))
+            Y_valid = np.array(rel_cmi_frame_valid[ig_y_column].as_data_frame(header=False, use_pandas=False)).astype(float).reshape((-1,))
+            features_valid = np.array(rel_cmi_frame_valid[features_column].as_data_frame(header=False, use_pandas=False)).reshape((-1,))
+            admissible_valid = np.array(rel_cmi_frame_valid[index_of_admissible].as_data_frame(header=False, use_pandas=False)).astype(float).reshape((-1,))
+            mask_valid = admissible_valid > 0       
+        
+        if xval:
+            X_xval = np.array(rel_cmi_frame_xval[ig_x_column].as_data_frame(header=False, use_pandas=False)).astype(float).reshape((-1,))
+            Y_xval = np.array(rel_cmi_frame_xval[ig_y_column].as_data_frame(header=False, use_pandas=False)).astype(float).reshape((-1,))
+            features_xval = np.array(rel_cmi_frame_xval[features_column].as_data_frame(header=False, use_pandas=False)).reshape((-1,))
+            admissible_xval = np.array(rel_cmi_frame_xval[index_of_admissible].as_data_frame(header=False, use_pandas=False)).astype(float).reshape((-1,))
+            mask_xval = admissible_xval > 0
+
         plt.figure(figsize=figsize)
         plt.grid(True)
-        plt.scatter(X, Y, zorder=10, c=np.where(mask, "black", "gray"))
+        plt.scatter(X, Y, zorder=10, c=np.where(mask, "black", "gray"), label="training data")
+        if valid:
+            plt.scatter(X_valid, Y_valid, zorder=10, marker=",", c=np.where(mask_valid, "black", "gray"), label="validation data")
+        if xval:
+            plt.scatter(X_xval, Y_xval, zorder=10, marker="v", c=np.where(mask_xval, "black", "gray"), label="xval holdout data")
+        if legend_on:
+            plt.legend(loc=2, fancybox=True, framealpha=0.5)
         plt.hlines(y_thresh, xmin=x_thresh, xmax=xmax, colors="red", linestyle="dashed")
         plt.vlines(x_thresh, ymin=y_thresh, ymax=ymax, colors="red", linestyle="dashed")
         plt.gca().add_collection(PolyCollection(verts=[[(0,0), (0, ymax), (x_thresh, ymax), (x_thresh, y_thresh), (xmax, y_thresh), (xmax, 0)]],
@@ -64,11 +92,21 @@ def class_extensions():
             plt.annotate(features[i], (X[i], Y[i]), xytext=(0, -10), textcoords="offset points",
                          horizontalalignment='center', verticalalignment='top', color="blue")
         
+        if valid:
+            for i in mask_valid.nonzero()[0]:
+                plt.annotate(features_valid[i], (X_valid[i], Y_valid[i]), xytext=(0, -10), textcoords="offset points",
+                             horizontalalignment='center', verticalalignment='top', color="magenta")
+
+        if xval:
+            for i in mask_xval.nonzero()[0]:
+                plt.annotate(features_xval[i], (X_xval[i], Y_xval[i]), xytext=(0, -10), textcoords="offset points",
+                             horizontalalignment='center', verticalalignment='top', color="green")
+        
         plt.xlim(0, 1.05)
         plt.ylim(0, 1.05)
         plt.xlabel(x_label)
         plt.ylabel(y_label)
-        plt.title("Infogram")
+        plt.title(title)
         fig = plt.gcf()
         if not server:
             plt.show()
@@ -76,15 +114,16 @@ def class_extensions():
         
     def get_relevance_cmi_frame(self, valid=False, xval=False):
         """
-        Get the relevance and CMI for all attributes returned by Infogram as an H2O Frame.
-        :param self: 
+        Retreive relevance, cmi information in an H2O frame for training dataset by default
+        :param valid: return infogram info on validation dataset if true
+        :param cv: return infogram info on cross-validation hold outs if true
         :return: H2OFrame
         """
         keyString = self._model_json["output"]["relevance_cmi_key"]
         if (valid):
-            keyString = self._model_json["output"]["relevance_cmi_valid"]
+            keyString = self._model_json["output"]["relevance_cmi_key_valid"]
         elif (xval):
-            keyString = self._model_json["output"]["relevance_cmi_xval"]
+            keyString = self._model_json["output"]["relevance_cmi_key_xval"]
             
         if keyString is None:
             return None

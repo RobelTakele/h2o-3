@@ -22,9 +22,7 @@
 #' @param validation_frame Id of the validation data frame.
 #' @param seed Seed for random numbers (affects certain parts of the algo that are stochastic and those might or might not be enabled by default).
 #'        Defaults to -1 (time-based random number).
-#' @param keep_cross_validation_models \code{Logical}. Whether to keep the cross-validation models. Defaults to TRUE.
-#' @param keep_cross_validation_predictions \code{Logical}. Whether to keep the predictions of the cross-validation models. Defaults to FALSE.
-#' @param keep_cross_validation_fold_assignment \code{Logical}. Whether to keep the cross-validation fold assignment. Defaults to FALSE.
+#' @param nfolds Number of folds for K-fold cross-validation (0 to disable or >= 2). Defaults to 0.
 #' @param fold_assignment Cross-validation fold assignment scheme, if fold_column is not specified. The 'Stratified' option will
 #'        stratify the folds based on the response variable, for classification problems. Must be one of: "AUTO",
 #'        "Random", "Modulo", "Stratified". Defaults to AUTO.
@@ -103,9 +101,7 @@ h2o.infogram <- function(x,
                          model_id = NULL,
                          validation_frame = NULL,
                          seed = -1,
-                         keep_cross_validation_models = TRUE,
-                         keep_cross_validation_predictions = FALSE,
-                         keep_cross_validation_fold_assignment = FALSE,
+                         nfolds = 0,
                          fold_assignment = c("AUTO", "Random", "Modulo", "Stratified"),
                          fold_column = NULL,
                          ignore_const_cols = TRUE,
@@ -186,12 +182,8 @@ h2o.infogram <- function(x,
     parms$validation_frame <- validation_frame
   if (!missing(seed))
     parms$seed <- seed
-  if (!missing(keep_cross_validation_models))
-    parms$keep_cross_validation_models <- keep_cross_validation_models
-  if (!missing(keep_cross_validation_predictions))
-    parms$keep_cross_validation_predictions <- keep_cross_validation_predictions
-  if (!missing(keep_cross_validation_fold_assignment))
-    parms$keep_cross_validation_fold_assignment <- keep_cross_validation_fold_assignment
+  if (!missing(nfolds))
+    parms$nfolds <- nfolds
   if (!missing(fold_assignment))
     parms$fold_assignment <- fold_assignment
   if (!missing(fold_column))
@@ -270,9 +262,7 @@ h2o.infogram <- function(x,
                                          training_frame,
                                          validation_frame = NULL,
                                          seed = -1,
-                                         keep_cross_validation_models = TRUE,
-                                         keep_cross_validation_predictions = FALSE,
-                                         keep_cross_validation_fold_assignment = FALSE,
+                                         nfolds = 0,
                                          fold_assignment = c("AUTO", "Random", "Modulo", "Stratified"),
                                          fold_column = NULL,
                                          ignore_const_cols = TRUE,
@@ -358,12 +348,8 @@ h2o.infogram <- function(x,
     parms$validation_frame <- validation_frame
   if (!missing(seed))
     parms$seed <- seed
-  if (!missing(keep_cross_validation_models))
-    parms$keep_cross_validation_models <- keep_cross_validation_models
-  if (!missing(keep_cross_validation_predictions))
-    parms$keep_cross_validation_predictions <- keep_cross_validation_predictions
-  if (!missing(keep_cross_validation_fold_assignment))
-    parms$keep_cross_validation_fold_assignment <- keep_cross_validation_fold_assignment
+  if (!missing(nfolds))
+    parms$nfolds <- nfolds
   if (!missing(fold_assignment))
     parms$fold_assignment <- fold_assignment
   if (!missing(fold_column))

@@ -17,7 +17,12 @@ import water.Key;
 import water.Scope;
 import water.api.schemas3.ModelParametersSchemaV3;
 import water.fvec.Frame;
+import water.fvec.Vec;
+import water.parser.BufferedString;
 import water.util.TwoDimTable;
+
+import static hex.Infogram.InfogramModel.InfogramModelOutput._CMI_RAW_INDEX;
+import static hex.Infogram.InfogramModel.InfogramModelOutput._COLUMN_INDEX;
 import static hex.Infogram.InfogramModel.InfogramParameters;
 
 import java.util.ArrayList;
@@ -29,7 +34,6 @@ import static hex.glm.GLMModel.GLMParameters;
 import static hex.glm.GLMModel.GLMParameters.Family.*;
 
 public class InfogramUtils {
-
   /**
    * This method will take the columns of _parms.train().  It will then remove the response, any columns in 
    * _parms._sensitive_attributes from the columns of _parms.train(), weights_column, offset_column.  Then, the 
@@ -38,7 +42,7 @@ public class InfogramUtils {
    * @param parms
    * @return
    */
-  public static String[] extractPredictors(InfogramParameters parms) {
+  public static String[] extractPredictors(InfogramParameters parms, String foldColumnName) {
     Frame train = parms.train();
     List<String> colNames = new ArrayList<>(Arrays.asList(parms.train().names()));
     List<String> excludeCols = new ArrayList<>(Arrays.asList(parms._response_column));
@@ -50,6 +54,10 @@ public class InfogramUtils {
       excludeCols.add(parms._offset_column);  // remove offset
     if (parms._ignored_columns != null)
       excludeCols.addAll(Arrays.asList(parms._ignored_columns));
+    if (parms._fold_column != null)
+      excludeCols.add(parms._fold_column);
+    if (foldColumnName != null)
+      excludeCols.add(foldColumnName);
     colNames.removeAll(excludeCols);  // remove sensitive attributes, response, weight/offset columns
     excludeCols = new ArrayList<>();  // reset excludeCols
     for (String oneCol : colNames)
@@ -122,12 +130,25 @@ public class InfogramUtils {
         extractedFrame.add(colName, trainFrame.vec(colName));
 
     List<String> colNames = Arrays.asList(trainFrame.names());
-    if (parms._weights_column != null && colNames.contains(parms._weights_column))
-      extractedFrame.add(parms._weights_column, trainFrame.vec(parms._weights_column));
+    boolean cvWeightsPresent = parms._weights_column != null && colNames.contains(parms._weights_column)
+            && parms._weights_column.equals("__internal_cv_weights__");
+    if (parms._weights_column != null && colNames.contains(parms._weights_column)) {
+      if (parms._weights_column.equals("__internal_cv_weights__")) {
+        String cvWeightName = "infogram_internal_cv_weights_"; // switch weights column to turn off cv in algo used to build infogram
+        extractedFrame.add(cvWeightName, trainFrame.vec(parms._weights_column));
+        parms._weights_column = cvWeightName;
+      } else {
+        extractedFrame.add(parms._weights_column, trainFrame.vec(parms._weights_column));
+      }
+    }
     if (parms._offset_column != null && colNames.contains(parms._offset_column))
       extractedFrame.add(parms._offset_column, trainFrame.vec(parms._offset_column));
     if (parms._response_column != null && colNames.contains(parms._response_column))
       extractedFrame.add(parms._response_column, trainFrame.vec(parms._response_column));
+    if (parms._fold_column != null && colNames.contains(parms._fold_column) && !cvWeightsPresent)
+      extractedFrame.add(parms._fold_column, trainFrame.vec(parms._fold_column));
+    else
+      parms._fold_column = null;
 
     DKV.put(extractedFrame);
     return extractedFrame;
@@ -224,6 +245,7 @@ public class InfogramUtils {
       modelParams[index] = (Model.Parameters) paramsSchema.fillFromImpl(infoParams).createAndFillImpl();
       modelParams[index]._ignored_columns = null; // training frame contains only needed columns
       modelParams[index]._train = trainingFrames[index]._key;
+      
     }
     return modelParams;
   }
@@ -235,30 +257,71 @@ public class InfogramUtils {
       modelBuilders[index] = ModelBuilder.make(modelParams[index]);
     return modelBuilders;
   }
-
+  
   /***
    * Calculate the cmi for each predictor.  Refer to https://h2oai.atlassian.net/browse/PUBDEV-8075 section I step 2 
    * for core infogram, or section II step 3 for fair infogram 
    * 
    * @param builders
    * @param trainingFrames
+   * @param validFrame
    * @param cmi
+   * @param cmiValid
    * @param startIndex
    * @param numModels
    * @param response
    * @param generatedFrameKeys
+   * @return
    */
-  public static void generateInfoGrams(ModelBuilder[] builders, Frame[] trainingFrames, double[] cmi, int startIndex,
-                                       int numModels, String response, List<Key<Frame>> generatedFrameKeys) {
+  public static long generateInfoGrams(ModelBuilder[] builders, Frame[] trainingFrames, Frame validFrame, double[] cmi,
+                                       double[] cmiValid, int startIndex, int numModels, String response, 
+                                       List<Key<Frame>> generatedFrameKeys) {
+    long nonZeroRows = Long.MAX_VALUE;
     for (int index = 0; index < numModels; index++) {
-      Model oneModel = builders[index].get();                   // extract model
-      Frame prediction = oneModel.score(trainingFrames[index]); // generate prediction
+      Model oneModel = builders[index].get();  // extract model
+      int nclasses = oneModel._output.nclasses();
+      Frame prediction = oneModel.score(trainingFrames[index]); // generate prediction, cmi on training frame
       prediction.add(response, trainingFrames[index].vec(response));
       Scope.track_generic(oneModel);
+      if (oneModel._parms._weights_column != null && Arrays.asList(trainingFrames[index].names()).contains(oneModel._parms._weights_column))
+        prediction.add(oneModel._parms._weights_column, trainingFrames[index].vec(oneModel._parms._weights_column));
       generatedFrameKeys.add(prediction._key);
-      cmi[index+startIndex] = new hex.Infogram.EstimateCMI(prediction).doAll(prediction)._meanCMI; // calculate raw CMI
+      cmi[index+startIndex] = new hex.Infogram.EstimateCMI(prediction, nclasses).doAll(prediction)._meanCMI; // calculate raw CMI
+      if (validFrame != null) { // generate prediction, cmi on validation frame
+        Frame predictionValid = oneModel.score(validFrame);  // already contains the response
+        predictionValid.add(response, validFrame.vec(response));
+        if (oneModel._parms._weights_column != null) { // weight column names are changed if cross-validation is on
+          if (Arrays.asList(validFrame.names()).contains("__internal_cv_weights__"))
+            predictionValid.add(oneModel._parms._weights_column, validFrame.vec("__internal_cv_weights__"));
+          else
+            predictionValid.add(oneModel._parms._weights_column, validFrame.vec(oneModel._parms._weights_column));
+        }
+        generatedFrameKeys.add(predictionValid._key);
+        EstimateCMI calCMI = new hex.Infogram.EstimateCMI(predictionValid, nclasses).doAll(predictionValid);
+        cmiValid[index + startIndex] = calCMI._meanCMI;
+        nonZeroRows = Math.min(nonZeroRows, calCMI._nonZeroRows);
+      }
     }
+    return nonZeroRows;
   }
+  
+  public static Frame generateCMIRelevance(String[] allPredictorNames, double[] admissible, double[] admissibleIndex, 
+                                           double[] relevance, double[] cmi, double[] cmiRaw, boolean buildCore) {      
+    Vec.VectorGroup vg = Vec.VectorGroup.VG_LEN1;
+    Vec vName = Vec.makeVec(allPredictorNames, vg.addVec());
+    Vec vAdm = Vec.makeVec(admissible, vg.addVec());
+    Vec vAdmIndex = Vec.makeVec(admissibleIndex, vg.addVec());
+    Vec vRel = Vec.makeVec(relevance, vg.addVec());
+    Vec vCMI = Vec.makeVec(cmi, vg.addVec());
+    Vec vCMIRaw = Vec.makeVec(cmiRaw, vg.addVec());
+    String[] columnNames = buildCore ? new String[]{"column", "admissible", "admissible_index", "Total Information",
+            "Net Information", "Net Information Raw"} : new String[]{"column", "admissible", "admissible_index",
+            "Relevance_index", "Safety_index", "Safety_index Raw"};
+    Frame cmiRelFrame = new Frame(Key.<Frame>make(), columnNames, new Vec[]{vName, vAdm, vAdmIndex, vRel, vCMI, vCMIRaw});
+    DKV.put(cmiRelFrame);
+    return cmiRelFrame;
+  }
+  
   
   public static void removeFromDKV(List<Key<Frame>> generatedFrameKeys) {
     for (Key<Frame> oneFrameKey : generatedFrameKeys)
@@ -286,7 +349,7 @@ public class InfogramUtils {
       if (cmiRaw[index] > maxCMI)
         maxCMI = cmiRaw[index];
     }
-    double scale = 1.0/maxCMI;
+    double scale = maxCMI == 0 ? 0 : 1.0/maxCMI;
     double[] cmi = new double[lastInd];
     double[] cmiLong = DoubleStream.of(cmiRaw).map(d->d*scale).toArray();
     System.arraycopy(cmiLong, 0, cmi, 0, lastInd);
@@ -303,5 +366,36 @@ public class InfogramUtils {
       newFrame.add(addEle, featureFrame.vec(addEle));
     DKV.put(newFrame);
     return newFrame;
+  }
+
+  public static void extractInfogramInfo(InfogramModel infoModel, double[][] cmiRaw, 
+                                         ArrayList<ArrayList<String>> columns, int foldIndex) {
+    Frame validFrame = DKV.getGet(infoModel._output._relCmiKey_valid);
+    // relCMIFrame contains c1:column, c2:admissible, c3:admissible_index, c4:relevance, c5:cmi, c6 cmi_raw
+    cmiRaw[foldIndex] = vec2array(validFrame.vec(_CMI_RAW_INDEX));
+    String[] oneColumn = strVec2array(validFrame.vec(_COLUMN_INDEX));
+    ArrayList<String> oneFrameColumn = new ArrayList(Arrays.asList(oneColumn));
+    columns.add(oneFrameColumn);
+    validFrame.remove();
+  }
+
+  static double[] vec2array(Vec v) {
+    assert v.length() < Integer.MAX_VALUE;
+    final int len = (int) v.length();
+    double[] array = new double[len];
+    for (int i = 0; i < len; i++) array[i] = v.at(i);
+    return array;
+  }
+
+  static String[] strVec2array(Vec v) {
+    assert v.length() < Integer.MAX_VALUE;
+    final int len = (int) v.length();
+    BufferedString bs = new BufferedString();
+    String[] array = new String[len];
+    for (int i = 0; i < len; i++) {
+      BufferedString s = v.atStr(bs, i);
+      if (s != null) array[i] = s.toString();
+    }
+    return array;
   }
 }
