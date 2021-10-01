@@ -11,28 +11,30 @@ import numpy as np
 
 
 def uplift_compare():
-    df, feature_cols = make_uplift_classification(n_samples=10000, 
+    df, feature_cols = make_uplift_classification(n_samples=5000, 
                                                   treatment_name=["control", "treatment"],
                                                   n_classification_features=10,
-                                                  n_classification_informative=10)
-
-    print(df.pivot_table(values='conversion',
-                         index='treatment_group_key',
-                         aggfunc=[np.mean, np.size],
-                         margins=True))
-
-    data = h2o.H2OFrame(df)
+                                                  n_classification_informative=10,
+                                                  random_seed=42)
+    
     treatment_column = "treatment_group_key"
     response_column = "conversion"
-    data[treatment_column] = data[treatment_column].asfactor()
-    data[response_column] = data[response_column].asfactor()
 
-    split = data.split_frame(ratios=[0.75], seed=42)
-    train = split[0]
-    test = split[1]
+    mask = np.random.rand(len(df)) < 0.5
+    train_df, test_df = df[mask].copy(deep=True), df[~mask].copy(deep=True)
+
+    train = h2o.H2OFrame(train_df)
+    train[treatment_column] = train[treatment_column].asfactor()
+    train[response_column] = train[response_column].asfactor()
+
+    test = h2o.H2OFrame(test_df)
+    test[treatment_column] = test[treatment_column].asfactor()
+    test[response_column] = test[response_column].asfactor()
+
+    train_df[treatment_column].replace({1: "treatment", 0: "control"}, inplace=True)
     
-    ntree = 30
-    max_depth = 10
+    ntree = 10
+    max_depth = 5
     
     auuc_types = ["qini", "lift", "gain"]
     h2o_drfs = [None] * len(auuc_types)
@@ -44,11 +46,11 @@ def uplift_compare():
             uplift_metric="KL",
             distribution="bernoulli",
             gainslift_bins=10,
-            min_rows=10,
+            min_rows=5,
             nbins=1000,
             seed=42,
             auuc_type=auuc_types[i],
-            sample_rate=0.5
+            sample_rate=0.9
         )
         drf.train(y=response_column, x=feature_cols, training_frame=train)
         h2o_drfs[i] = drf
@@ -59,19 +61,18 @@ def uplift_compare():
         max_depth=max_depth,
         evaluationFunction="KL",
         control_name="control",
-        min_samples_leaf=10,
-        min_samples_treatment=10,
+        min_samples_leaf=5,
+        min_samples_treatment=5,
         normalization=False,
         random_state=42,
     )
     uplift_model.fit(
-        df[feature_cols].values,
-        treatment=df[treatment_column].values,
-        y=df[response_column].values
+        train_df[feature_cols].values,
+        treatment=train_df[treatment_column].values,
+        y=train_df[response_column].values
     )
     
     testing_df = test
-    test_df = testing_df.as_data_frame()
     causal_preds = uplift_model.predict(test_df.values)
 
     for i in range(len(h2o_drfs)):
@@ -88,7 +89,7 @@ def uplift_compare():
         mean_diff = preds_comp["diff"].mean(return_frame=False)[0]
         
         print("Average difference: %f" % mean_diff)
-        assert mean_diff < 0.2, str(mean_diff)+": Average difference should not be higher than 20 %"
+        assert mean_diff < 0.1, str(mean_diff)+": Average difference should not be higher than 10 %"
 
     results = preds_comp.as_data_frame()
     results = results[["h2o", "causal", response_column, treatment_column]]
@@ -101,11 +102,15 @@ def uplift_compare():
     # compare AUUC calculation with CausalML
     h2o_auuc_qain_test = h2o_drfs[2].model_performance(testing_df).auuc()
     print("AUUC calculation:")
-    print("CausalML: %f H2O: %f" % (auuc["h2o"], h2o_auuc_qain_test))
     diff = abs(auuc["h2o"] - h2o_auuc_qain_test)
-    assert diff < 0.5, \
+    print("CausalML H2O: %f H2O: %f diff: %f" % (auuc["h2o"], h2o_auuc_qain_test, diff))
+    assert diff < 7, \
         "Absolute difference between causalML package and H2O AUUC calculation is higher than is expected: %f" % diff
-    assert h2o_auuc_qain_test >= auuc["causal"], "H2O AUUC should be >= than CausalML AUUC"
+    
+    diff = abs(auuc["causal"] - h2o_auuc_qain_test)
+    print("CausalML: %f H2O: %f diff: %f" % (auuc["causal"], h2o_auuc_qain_test, diff))
+    assert diff < 7,\
+        "Absolute difference between causalML package and H2O AUUC is higher than is expected: %f" % diff
     
     # test plot_auuc
     perf = h2o_drfs[0].model_performance(testing_df)
