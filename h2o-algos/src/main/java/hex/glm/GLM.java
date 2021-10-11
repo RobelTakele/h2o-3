@@ -74,6 +74,7 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
   public static int _betaLenPerClass;
   private boolean _earlyStopEnabled = false;
   private boolean _checkPointFirstIter = false;  // indicate first iteration for checkpoint model
+  private boolean _betaConstraintsOff = false;
 
 
   public GLM(boolean startup_once){super(new GLMParameters(),startup_once);}
@@ -851,7 +852,12 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
           _state._ymu = new double[]{_parms._intercept ? _train.lastVec().mean() : _parms.linkInv(0)};
         }
       }
-      BetaConstraint bc = (_parms._beta_constraints != null)?new BetaConstraint(_parms._beta_constraints.get()):new BetaConstraint();
+      _betaConstraintsOff = !(_parms._beta_constraints != null && (Solver.AUTO.equals(_parms._solver) ||
+              Solver.COORDINATE_DESCENT.equals(_parms._solver)));
+      BetaConstraint bc = _betaConstraintsOff ? new BetaConstraint():new BetaConstraint(_parms._beta_constraints.get());
+      if (_parms._beta_constraints != null && _betaConstraintsOff) {
+        warn("Beta Constraints", " will be disabled except for solver AUTO or COORDINATE_DESCENT.");
+      }
       if((bc.hasBounds() || bc.hasProximalPenalty()) && _parms._compute_p_values)
         error("_compute_p_values","P-values can not be computed for constrained problems");
       if (bc.hasBounds() && _parms._early_stopping)
@@ -1251,12 +1257,13 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
           _state.setActiveClass(c);
           boolean onlyIcpt = _state.activeDataMultinomial(c).fullN() == 0;
 
-          if (_state.l1pen() == 0) {
+          if (_state.l1pen() == 0) { // disable line search with beta constraints on
             if (_state.ginfoNull())
               _state.updateState(beta, _state.gslvr().getGradient(beta));
             ls = new MoreThuente(_state.gslvrMultinomial(c), _state.betaMultinomial(c, beta), _state.ginfoMultinomial(c));
-          } else
+          } else {
             ls = new SimpleBacktrackingLS(_state.gslvrMultinomial(c), _state.betaMultinomial(c, beta), _state.l1pen());
+          }
           new GLMMultinomialUpdate(_state.activeDataMultinomial(), _job._key, beta, c).doAll(_state.activeDataMultinomial()._adaptedFrame);
           ComputationState.GramXY gram = _state.computeGram(_state.betaMultinomial(c, beta), s);
           double[] betaCnd = COD_solve(gram, _state._alpha, _state.lambda());
@@ -3011,8 +3018,8 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
         if (diff > maxDiff) maxDiff = diff;
         if(diff > updateEpsilon) {
           doUpdateCD(grads, xx[i], bd, i, i + 1);
-          beta[i] = b;
         }
+        beta[i] = b;
       }
       // intercept
       if(_parms._intercept) {
@@ -3026,7 +3033,6 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
       if (maxDiff < betaEpsilon) // stop if beta not changing much
         break;
     }
-    long tend = System.currentTimeMillis();
     return beta;
   }
 
