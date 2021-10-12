@@ -40,9 +40,10 @@ glmBetaConstraints <- function() {
       h2o.residual_deviance(h2o.performance(m, test))
     ))
   } 
+  
+  brower()
   # in terms of performance, m0 should be worse than m1
+  print("done")
 }
-
-
 
 doTest("GLM: Compare GLM with and without beta constraints", glmBetaConstraints)
