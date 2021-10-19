@@ -120,52 +120,6 @@ setMethod("h2o.keyof", signature(object = "Keyed"), function(object) {
   stop("`keyof` not implemented for this object type.")
 })
 
-#' H2OInfogram class
-#'
-#' H2OInfogram class contains a subset of what a normal H2OModel will return
-#' @slot model_id string returned as part of every H2OModel
-#' @slot algorithm string denoting the algorithm used to build infogram
-#' @slot admissible_features string array denoting all predictor names which pass the cmi and relelvance threshold
-#' @slot admissible_score \code{H2OFrame} that contains columns, admissible, admissible_index, relevance, cmi, cmi_raw
-#' @aliases H2OInfogram
-#' @export
-setClass("H2OInfogram", slots = list(model_id='character', algorithm='character', admissible_features='character', admissible_score="H2OFrame"))
-
-#' @rdname initialize
-#' @param .object A \code{H2OInfogramModel} object
-#' @param model_id string returned as part of every H2OModel
-#' @param ... parameters to algorithm, admissible_features, ... 
-#' @return A \code{H2OInfogramModel} object
-#' @export
-setMethod("initialize", "H2OInfogram", function(.Object, model_id, ...) {
-  if (!missing(model_id)) {
-    infogram_model = h2o.getModel(model_id)
-    if (is(infogram_model, "H2OModel") &&
-        (infogram_model@algorithm == 'infogram')) {
-      .Object@model_id <- infogram_model@model_id
-      .Object@algorithm <- infogram_model@algorithm
-      if (!is.null(infogram_model@model$admissible_features) && !is.list(infogram_model@model$admissible_features))
-      .Object@admissible_features <-
-        infogram_model@model$admissible_features
-      .Object@admissible_score <- h2o.getFrame(infogram_model@model$relevance_cmi_key)
-      return(.Object)
-    } else {
-      stop("Input must be H2OModel with algorithm == infogram.")
-    }
-  } else {
-    stop("A model Id must be used to instantiate a H2OInfogram.")
-  }
-})
-
-#' wrapper function for instantiating H2OInfogramModel
-#' @param model_id is string of H2OModel object
-#' @param ... parameters to algorithm, admissible_features, ... 
-#' @return A \code{H2OInfogramModel} object
-#' @export
-H2OInfogramModel <- function(model_id, ...) {
-  initialize(new("H2OInfogramModel"), model_id=model_id, ...)
-}
-
 #'
 #' The H2OModel object.
 #'
@@ -414,6 +368,15 @@ setMethod("show", "H2OCoxPHModel", function(object) {
   # summary
   get("print.coxph", getNamespace("survival"))(.as.survival.coxph.model(o@model))
 })
+
+#' H2OInfogram class
+#'
+#' H2OInfogram class contains a subset of what a normal H2OModel will return
+#' @slot model_id string returned as part of every H2OModel
+#' @slot algorithm string denoting the algorithm used to build infogram
+#' @slot admissible_features string array denoting all predictor names which pass the cmi and relelvance threshold
+#' @slot admissible_score \code{H2OFrame} that contains columns, admissible, admissible_index, relevance, cmi, cmi_raw
+#' @aliases H2OInfogram
 
 #'
 #' The H2OCoxPHModelSummary object.
@@ -965,7 +928,6 @@ setMethod("summary", "H2OGrid",
 setClass("H2OFrame", contains = c("Keyed", "environment"))
 #' @rdname h2o.keyof
 setMethod("h2o.keyof", signature("H2OFrame"), function(object) attr(object, "id"))
-
 
 setClassUnion("numericOrNULL", c("numeric", "NULL"))
 
