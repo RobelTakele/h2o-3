@@ -369,15 +369,6 @@ setMethod("show", "H2OCoxPHModel", function(object) {
   get("print.coxph", getNamespace("survival"))(.as.survival.coxph.model(o@model))
 })
 
-#' H2OInfogram class
-#'
-#' H2OInfogram class contains a subset of what a normal H2OModel will return
-#' @slot model_id string returned as part of every H2OModel
-#' @slot algorithm string denoting the algorithm used to build infogram
-#' @slot admissible_features string array denoting all predictor names which pass the cmi and relelvance threshold
-#' @slot admissible_score \code{H2OFrame} that contains columns, admissible, admissible_index, relevance, cmi, cmi_raw
-#' @aliases H2OInfogram
-
 #'
 #' The H2OCoxPHModelSummary object.
 #'
