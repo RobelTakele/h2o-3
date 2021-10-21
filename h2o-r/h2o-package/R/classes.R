@@ -941,7 +941,7 @@ setClassUnion("CharacterOrNULL", c("character", "NULL"))
 #' @slot admissible_score_xval is H2OFrame that contains averages of columns, admissible, admissible_index, relevance, cmi, cmi_raw from cv hold-out
 #' @aliases H2OInfogram
 #' @export
-setClass("H2OInfogram", slots = c(model_id='character', algorithm='character', admissible_features='character',  
+setClass("H2OInfogram", slots = c(model_id='character', algorithm='character', admissible_features='CharacterOrNULL',  
                                   admissible_features_valid="CharacterOrNULL", admissible_features_xval="CharacterOrNULL",
                                   net_information_threshold='numericOrNULL', total_information_threshold='numericOrNULL', 
                                   safety_index_threshold='numericOrNULL', relevance_index_threshold='numericOrNULL', 

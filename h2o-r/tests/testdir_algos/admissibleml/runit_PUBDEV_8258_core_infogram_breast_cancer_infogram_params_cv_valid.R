@@ -22,7 +22,7 @@ infogramBCVCV <- function() {
     infogramModelV <- h2o.infogram(y=Y, x=X, training_frame=train,  validation_frame=test, seed=12345, top_n_features=50) # model with training, validation datasets
     infogramModelCV <- h2o.infogram(y=Y, x=X, training_frame=train,  nfolds=2, seed=12345, top_n_features=50) # model with training, CV
     infogramModelVCV <- h2o.infogram(y=Y, x=X, training_frame=train,  validation_frame=test, nfolds=2, seed=12345, top_n_features=50) # model with training, validation datasets and CV
-
+    browser()
     Log.info("comparing infogram info from training dataset")
     relCMITrain <- infogramModel@admissible_score
     relCMITrainV <- infogramModelV@admissible_score
