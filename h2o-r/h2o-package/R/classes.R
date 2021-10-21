@@ -930,6 +930,8 @@ setClassUnion("CharacterOrNULL", c("character", "NULL"))
 #' @slot model_id string returned as part of every H2OModel
 #' @slot algorithm string denoting the algorithm used to build infogram
 #' @slot admissible_features string array denoting all predictor names which pass the cmi and relelvance threshold
+#' @slot admissible_features_valid string array denoting all predictor names which pass the cmi and relelvance threshold from validation data
+#' @slot admissible_features_xval string array denoting all predictor names which pass the cmi and relelvance threshold from cross-validation hold outs
 #' @slot net_information_threshold numeric value denoting threshold used for predictor selection
 #' @slot total_information_threshold numeric value denoting threshold used for predictor selection
 #' @slot safety_index_threshold numeric value denoting threshold used for predictor selection
@@ -943,8 +945,7 @@ setClass("H2OInfogram", slots = c(model_id='character', algorithm='character', a
                                   admissible_features_valid="CharacterOrNULL", admissible_features_xval="CharacterOrNULL",
                                   net_information_threshold='numericOrNULL', total_information_threshold='numericOrNULL', 
                                   safety_index_threshold='numericOrNULL', relevance_index_threshold='numericOrNULL', 
-                                  admissible_score='H2OFrame', admissible_score = "H2OFrame", 
-                                  admissible_score_valid = "H2OFrameOrNULL", admissible_score_xval="H2OFrameOrNULL"))
+                                  admissible_score='H2OFrame', admissible_score_valid = "H2OFrameOrNULL", admissible_score_xval="H2OFrameOrNULL"))
 
 #' Method on \code{H2OInfogram} object which in this case is to instantiate and initialize it
 #'
