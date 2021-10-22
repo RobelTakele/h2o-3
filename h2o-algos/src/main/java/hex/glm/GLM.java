@@ -74,8 +74,8 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
   public static int _betaLenPerClass;
   private boolean _earlyStopEnabled = false;
   private boolean _checkPointFirstIter = false;  // indicate first iteration for checkpoint model
-  private boolean _betaConstraintsOff = false;
-
+  private boolean _betaConstraintsOff = true;
+  private boolean _betaConstraintsOn = false;
 
   public GLM(boolean startup_once){super(new GLMParameters(),startup_once);}
   public GLM(GLMModel.GLMParameters parms) {
@@ -854,6 +854,7 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
       }
       _betaConstraintsOff = !(_parms._beta_constraints != null && (Solver.AUTO.equals(_parms._solver) ||
               Solver.COORDINATE_DESCENT.equals(_parms._solver)));
+      _betaConstraintsOn = !_betaConstraintsOff;
       BetaConstraint bc = _betaConstraintsOff ? new BetaConstraint():new BetaConstraint(_parms._beta_constraints.get());
       if (_parms._beta_constraints != null && _betaConstraintsOff) {
         warn("Beta Constraints", " will be disabled except for solver AUTO or COORDINATE_DESCENT.");
@@ -1251,6 +1252,7 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
     private void fitCOD_multinomial(Solver s) {
       double[] beta = _state.betaMultinomial();
       LineSearchSolver ls;
+      final BetaConstraint bc = _state.activeBC();
       do {
         beta = beta.clone();
         for (int c = 0; c < _nclass; ++c) {
@@ -1272,7 +1274,13 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
             Log.info(LogMsg("Ls failed " + ls));
             continue;
           }
-          _state.setBetaMultinomial(c, beta, ls.getX());  // set new beta
+          if (_betaConstraintsOn) {
+            double[] tempBeta = ls.getX();
+            bc.applyAllBounds(tempBeta);
+            _state.setBetaMultinomial(c, beta, tempBeta);
+          } else {
+            _state.setBetaMultinomial(c, beta, ls.getX());  // set new beta
+          }
         }
 
         _state.setActiveClass(-1); // only reset after going through a whole set of classes.  Not sure about this
@@ -1743,8 +1751,11 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
       long t0 = System.currentTimeMillis();
       ComputationState.GramXY gramXY = _state.computeGram(_state.beta(), s);
       Log.info(LogMsg("Gram computed in " + (System.currentTimeMillis() - t0) + "ms"));
+      final BetaConstraint bc = _state.activeBC();
       double[] beta = _parms._solver == Solver.COORDINATE_DESCENT ? COD_solve(gramXY, _state._alpha, _state.lambda())
               : ADMM_solve(gramXY.gram, gramXY.xy);
+      if (_betaConstraintsOn) // apply beta constraints
+        bc.applyAllBounds(beta);
       // compute mse
       double[] x = ArrayUtils.mmul(gramXY.gram.getXX(), beta);
       for (int i = 0; i < x.length; ++i)
@@ -1760,6 +1771,7 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
       LineSearchSolver ls = null;
       int iterCnt = _checkPointFirstIter ? _state._iter : 0;
       boolean firstIter = iterCnt == 0;
+      final BetaConstraint bc = _state.activeBC();
       try {
         while (true) {
           iterCnt++;
@@ -1796,6 +1808,9 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
               return;
             }
             betaCnd = ls.getX();
+            if (_betaConstraintsOn)
+              bc.applyAllBounds(betaCnd);
+            
             if (!progress(betaCnd, ls.ginfo()))
               return;
             long t4 = System.currentTimeMillis();
@@ -2974,12 +2989,11 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
         }
       }
     }
-    final BetaConstraint bc = _state.activeBC();
     double [] beta = _state.beta().clone();
     int numStart = activeData.numStart();
     if(newCols != null) {
       for (int id : newCols) {
-        double b = bc.applyBounds(ADMM.shrinkage(grads[id], l1pen) * diagInv[id], id);
+        double b = ADMM.shrinkage(grads[id], l1pen) * diagInv[id];
         if (b != 0) {
           doUpdateCD(grads, xx[id], -b, id, id + 1);
           beta[id] = b;
@@ -2994,7 +3008,7 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
       maxDiff = 0;
       for (int i = 0; i < activeData._cats; ++i) {
         for(int j = activeData._catOffsets[i]; j < activeData._catOffsets[i+1]; ++j) { // can do in parallel
-          double b = bc.applyBounds(ADMM.shrinkage(grads[j], l1pen) * diagInv[j],j); // new beta value here
+          double b = ADMM.shrinkage(grads[j], l1pen) * diagInv[j]; // new beta value here
           double bd = beta[j] - b;
           if(bd != 0) {
             double diff = bd*bd*xx[j][j];
@@ -3012,7 +3026,7 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
         }
       }
       for (int i = numStart; i < P; ++i) {
-        double b = bc.applyBounds(ADMM.shrinkage(grads[i], l1pen) * diagInv[i],i);
+        double b = ADMM.shrinkage(grads[i], l1pen) * diagInv[i];
         double bd = beta[i] - b;
         double diff = bd * bd * xx[i][i];
         if (diff > maxDiff) maxDiff = diff;
@@ -3023,7 +3037,7 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
       }
       // intercept
       if(_parms._intercept) {
-        double b = bc.applyBounds(grads[P] * wsumInv,P);
+        double b = grads[P] * wsumInv;
         double bd = beta[P] - b;
         double diff = bd * bd * xx[P][P];
         if (diff > maxDiff) maxDiff = diff;
@@ -3486,6 +3500,12 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
       }
     }
 
+    public void applyAllBounds(double[] beta) {
+      int betaLength = beta.length;
+      for (int index=0; index<betaLength; index++)
+        beta[index] = applyBounds(beta[index], index);
+    }
+    
     public double applyBounds(double d, int i) {
       if(_betaLB != null && d < _betaLB[i])
         return _betaLB[i];
