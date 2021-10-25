@@ -853,7 +853,7 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
         }
       }
       _betaConstraintsOn = (_parms._beta_constraints != null && (Solver.AUTO.equals(_parms._solver) ||
-              Solver.COORDINATE_DESCENT.equals(_parms._solver)));
+              Solver.COORDINATE_DESCENT.equals(_parms._solver) || Solver.IRLSM.equals(_parms._solver)));
       BetaConstraint bc = _betaConstraintsOn ? new BetaConstraint(_parms._beta_constraints.get()) : new BetaConstraint();
       if (_parms._beta_constraints != null && !_betaConstraintsOn) {
         warn("Beta Constraints", " will be disabled except for solver AUTO or COORDINATE_DESCENT.");
