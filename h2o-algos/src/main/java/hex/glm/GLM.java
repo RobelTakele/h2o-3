@@ -852,11 +852,10 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
           _state._ymu = new double[]{_parms._intercept ? _train.lastVec().mean() : _parms.linkInv(0)};
         }
       }
-      _betaConstraintsOff = !(_parms._beta_constraints != null && (Solver.AUTO.equals(_parms._solver) ||
+      _betaConstraintsOn = (_parms._beta_constraints != null && (Solver.AUTO.equals(_parms._solver) ||
               Solver.COORDINATE_DESCENT.equals(_parms._solver)));
-      _betaConstraintsOn = !_betaConstraintsOff;
-      BetaConstraint bc = _betaConstraintsOff ? new BetaConstraint():new BetaConstraint(_parms._beta_constraints.get());
-      if (_parms._beta_constraints != null && _betaConstraintsOff) {
+      BetaConstraint bc = _betaConstraintsOn ? new BetaConstraint(_parms._beta_constraints.get()) : new BetaConstraint();
+      if (_parms._beta_constraints != null && !_betaConstraintsOn) {
         warn("Beta Constraints", " will be disabled except for solver AUTO or COORDINATE_DESCENT.");
       }
       if((bc.hasBounds() || bc.hasProximalPenalty()) && _parms._compute_p_values)
@@ -1274,6 +1273,7 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
             Log.info(LogMsg("Ls failed " + ls));
             continue;
           }
+          
           if (_betaConstraintsOn) {
             double[] tempBeta = ls.getX();
             bc.applyAllBounds(tempBeta);
@@ -1810,13 +1810,16 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
             betaCnd = ls.getX();
             if (_betaConstraintsOn)
               bc.applyAllBounds(betaCnd);
-            
+
             if (!progress(betaCnd, ls.ginfo()))
               return;
             long t4 = System.currentTimeMillis();
             Log.info(LogMsg("computed in " + (t2 - t1) + "+" + (t3 - t2) + "+" + (t4 - t3) + "=" + (t4 - t1) + "ms, step = " + ls.step() + ((_lslvr != null) ? ", l1solver " + _lslvr : "")));
-          } else
+          } else {
+            if (_betaConstraintsOn)
+              bc.applyAllBounds(betaCnd);
             Log.info(LogMsg("computed in " + (t2 - t1) + "+" + (t3 - t2) + "=" + (t3 - t1) + "ms, step = " + 1 + ((_lslvr != null) ? ", l1solver " + _lslvr : "")));
+          }
         }
       } catch (NonSPDMatrixException e) {
         Log.warn(LogMsg("Got Non SPD matrix, stopped."));
