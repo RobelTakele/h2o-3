@@ -74,7 +74,6 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
   public static int _betaLenPerClass;
   private boolean _earlyStopEnabled = false;
   private boolean _checkPointFirstIter = false;  // indicate first iteration for checkpoint model
-  private boolean _betaConstraintsOff = true;
   private boolean _betaConstraintsOn = false;
 
   public GLM(boolean startup_once){super(new GLMParameters(),startup_once);}

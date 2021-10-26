@@ -18,20 +18,27 @@ glmBetaConstraints <- function() {
   
   # Some comparisons
   m0 <- h2o.glm(x = x, y = y, training_frame = train, validation_frame = valid, family = "binomial")
-  m1 <- h2o.glm(x = x, y = y, training_frame = train, validation_frame = valid, family = "binomial", lambda_search = TRUE)
-  m2 <- h2o.glm(x = x, y = y, training_frame = train, validation_frame = valid, family = "binomial", non_negative = TRUE)
-  m3 <- h2o.glm(x = x, y = y, training_frame = train, validation_frame = valid, family = "binomial", non_negative = TRUE, lambda_search = TRUE)
-  m4 <- h2o.glm(x = x, y = y, training_frame = train, family = "binomial")
-  m5 <- h2o.glm(x = x, y = y, training_frame = train, family = "binomial", lambda_search = TRUE)
-  m6 <- h2o.glm(x = x, y = y, training_frame = train, family = "binomial", non_negative = TRUE)
-  m7 <- h2o.glm(x = x, y = y, training_frame = train, family = "binomial", non_negative = TRUE, lambda_search = TRUE)
+  m1 <- h2o.glm(x = x, y = y, training_frame = train, validation_frame = valid, family = "binomial", solver="COORDINATE_DESCENT")
+  m2 <- h2o.glm(x = x, y = y, training_frame = train, validation_frame = valid, family = "binomial", lambda_search = TRUE)
+  m3 <- h2o.glm(x = x, y = y, training_frame = train, validation_frame = valid, family = "binomial", non_negative = TRUE)
+  m4 <- h2o.glm(x = x, y = y, training_frame = train, validation_frame = valid, family = "binomial", non_negative = TRUE, lambda_search = TRUE)
+  m5 <- h2o.glm(x = x, y = y, training_frame = train, validation_frame = valid, family = "binomial", solver="irlsm", non_negative = TRUE)
+  m6 <- h2o.glm(x = x, y = y, training_frame = train, validation_frame = valid, family = "binomial", non_negative = TRUE, solver="irlsm", lambda_search = TRUE)
+  m7 <- h2o.glm(x = x, y = y, training_frame = train, family = "binomial")
+  m8 <- h2o.glm(x = x, y = y, training_frame = train, family = "binomial", solver="COORDINATE_DESCENT")
+  m9 <- h2o.glm(x = x, y = y, training_frame = train, family = "binomial", lambda_search = TRUE)
+  m10 <- h2o.glm(x = x, y = y, training_frame = train, family = "binomial", non_negative = TRUE)
+  m11 <- h2o.glm(x = x, y = y, training_frame = train, family = "binomial", non_negative = TRUE, lambda_search = TRUE)
+  m12 <- h2o.glm(x = x, y = y, training_frame = train, family = "binomial", non_negative = TRUE, solver="irlsm")
+  m13 <- h2o.glm(x = x, y = y, training_frame = train, family = "binomial", non_negative = TRUE, solver="irlsm", lambda_search = TRUE)
   
-  models <- c(m0, m1, m2, m3, m4, m5, m6)
+  models <- c(m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13)
   
   for (m in models) {
     cat(sprintf("validation_frame: %s\n", m@parameters$validation_frame))
     cat(sprintf("lambda_search: %s\n", m@parameters$lambda_search))
     cat(sprintf("non_negative: %s\n", m@parameters$non_negative))
+    cat(sprintf("solver: %s\n", m@parameters$solver))
     cat("-------------------------\n")
     cat(sprintf("Test AUC: %f\n", h2o.auc(h2o.performance(m, test))))
     cat(sprintf("Test Logloss: %f\n", h2o.logloss(h2o.performance(m, test))))
@@ -41,7 +48,6 @@ glmBetaConstraints <- function() {
     ))
   } 
   
-  brower()
   # in terms of performance, m0 should be worse than m1
   print("done")
 }
