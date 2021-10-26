@@ -853,7 +853,7 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
         }
       }
       _betaConstraintsOff = !(_parms._beta_constraints != null && (Solver.AUTO.equals(_parms._solver) ||
-              Solver.COORDINATE_DESCENT.equals(_parms._solver)));
+              Solver.COORDINATE_DESCENT.equals(_parms._solver) || Solver.IRLSM.equals(_parms._solver)));
       BetaConstraint bc = _betaConstraintsOff ? new BetaConstraint():new BetaConstraint(_parms._beta_constraints.get());
       if (_parms._beta_constraints != null && _betaConstraintsOff) {
         warn("Beta Constraints", " will be disabled except for solver AUTO or COORDINATE_DESCENT.");
@@ -1741,6 +1741,7 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
 
     private void fitLSM(Solver s) {
       long t0 = System.currentTimeMillis();
+      final BetaConstraint bc = _state.activeBC();
       ComputationState.GramXY gramXY = _state.computeGram(_state.beta(), s);
       Log.info(LogMsg("Gram computed in " + (System.currentTimeMillis() - t0) + "ms"));
       double[] beta = _parms._solver == Solver.COORDINATE_DESCENT ? COD_solve(gramXY, _state._alpha, _state.lambda())
@@ -1751,6 +1752,8 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
         x[i] = (x[i] - 2 * gramXY.xy[i]);
       double l = .5 * (ArrayUtils.innerProduct(x, beta) / _parms._obj_reg + gramXY.yy);
       _state._iter++;
+      
+      bc.applyAllBounds(beta);
       _state.updateState(beta, l);
     }
 
@@ -1760,6 +1763,7 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
       LineSearchSolver ls = null;
       int iterCnt = _checkPointFirstIter ? _state._iter : 0;
       boolean firstIter = iterCnt == 0;
+      final BetaConstraint bc = _state.activeBC();
       try {
         while (true) {
           iterCnt++;
@@ -1775,9 +1779,12 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
               _model._betaCndCheckpoint = betaCnd;
               return;
             }
-            if (!_checkPointFirstIter)
+            if (!_checkPointFirstIter) {
               betaCnd = s == Solver.COORDINATE_DESCENT ? COD_solve(gram, _state._alpha, _state.lambda())
                       : ADMM_solve(gram.gram, gram.xy); // this will shrink betaCnd if needed but this call may be skipped
+              if (_parms._solver.equals(Solver.IRLSM))
+                bc.applyAllBounds(betaCnd);
+            }
           }
           firstIter = false;
           _checkPointFirstIter = false;
@@ -3486,6 +3493,12 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
       }
     }
 
+    public void applyAllBounds(double[] beta) {
+      int betaLength = beta.length;
+      for (int index=0; index<betaLength; index++)
+        beta[index] = applyBounds(beta[index], index);
+    }
+    
     public double applyBounds(double d, int i) {
       if(_betaLB != null && d < _betaLB[i])
         return _betaLB[i];
