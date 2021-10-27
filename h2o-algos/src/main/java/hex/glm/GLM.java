@@ -1786,9 +1786,12 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
               _model._betaCndCheckpoint = betaCnd;
               return;
             }
-            if (!_checkPointFirstIter)
+            if (!_checkPointFirstIter) {
               betaCnd = s == Solver.COORDINATE_DESCENT ? COD_solve(gram, _state._alpha, _state.lambda())
                       : ADMM_solve(gram.gram, gram.xy); // this will shrink betaCnd if needed but this call may be skipped
+              if (_betaConstraintsOn)
+                bc.applyAllBounds(betaCnd);
+            }
           }
           firstIter = false;
           _checkPointFirstIter = false;
@@ -1815,8 +1818,6 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
             long t4 = System.currentTimeMillis();
             Log.info(LogMsg("computed in " + (t2 - t1) + "+" + (t3 - t2) + "+" + (t4 - t3) + "=" + (t4 - t1) + "ms, step = " + ls.step() + ((_lslvr != null) ? ", l1solver " + _lslvr : "")));
           } else {
-            if (_betaConstraintsOn)
-              bc.applyAllBounds(betaCnd);
             Log.info(LogMsg("computed in " + (t2 - t1) + "+" + (t3 - t2) + "=" + (t3 - t1) + "ms, step = " + 1 + ((_lslvr != null) ? ", l1solver " + _lslvr : "")));
           }
         }
