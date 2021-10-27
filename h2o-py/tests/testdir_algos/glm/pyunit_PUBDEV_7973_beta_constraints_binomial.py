@@ -27,31 +27,33 @@ def test_beta_constraints_binomial():
     seed = 12345
     h2o_data["C21"] = h2o_data["C21"].asfactor()
 
-    run_print_model_performance('binomial', h2o_data, nfolds, None, x, y, "No beta constraints", seed, "coordinate_descent")
+    run_print_model_performance('binomial', h2o_data, nfolds, None, x, y, "No beta constraints", seed, 
+                                "coordinate_descent")
     run_print_model_performance('binomial', h2o_data, nfolds, None, x, y, "No beat constraints", seed, "irlsm")
     printText = "running model with beta constrains on C1, C11"
-    constraints = h2o.H2OFrame({'names': ["C1.0", "C11"], 'lower_bounds': [1.3498144060671078*0.1, 1.959130413902314*0.1],
-                                'upper_bounds': [1.3498144060671078*0.8, 1.959130413902314*0.8]})
+    dictBounds = {'names': ["C1.0", "C11"], 'lower_bounds': [1.3498144060671078*0.1, 1.959130413902314*0.1],
+                  'upper_bounds': [1.3498144060671078*0.8, 1.959130413902314*0.8]}
+    constraints = h2o.H2OFrame(dictBounds)
     constraints = constraints[["names", "lower_bounds", "upper_bounds"]]
     run_print_model_performance('binomial', h2o_data, nfolds, constraints, x, y, printText, seed, "coordinate_descent")
     run_print_model_performance('binomial', h2o_data, nfolds, constraints, x, y, printText, seed, "irlsm")
     
     printText = "running model with beta constrains on C1, C2, C11, C12"
-    constraints = h2o.H2OFrame({'names': ["C1.0", "C2.0", "C11", "C12"], 
-                                'lower_bounds': [1.3498144060671078*0.1, 0.8892709168416222*0.1,
-                                                 1.959130413902314*0.1, 0.13139198387980652*0.1],
-                                'upper_bounds': [1.3498144060671078*0.8, 0.8892709168416222*0.8,
-                                                 1.959130413902314*0.8, 0.13139198387980652*0.8]})
+    dictBounds = {'names': ["C1.0", "C2.0", "C11", "C12"], 
+                  'lower_bounds': [1.3498144060671078*0.1, 0.8892709168416222*0.1, 1.959130413902314*0.1, 0.13139198387980652*0.1],
+                  'upper_bounds': [1.3498144060671078*0.8, 0.8892709168416222*0.8, 1.959130413902314*0.8, 0.13139198387980652*0.8]}
+    constraints = h2o.H2OFrame(dictBounds)
     constraints = constraints[["names", "lower_bounds", "upper_bounds"]]
     run_print_model_performance('binomial', h2o_data, nfolds, constraints, x, y, printText, seed, 'coordinate_descent')
     run_print_model_performance('binomial', h2o_data, nfolds, constraints, x, y, printText, seed, 'irlsm')
 
     printText = "running model with beta constrains on C1, C2, C3, C11, C12, C13"
-    constraints = h2o.H2OFrame({'names': ["C1.0", "C2.0", "C3.0", "C11", "C12", "C13"],
-                            'lower_bounds': [1.3498144060671078*0.1, 0.8892709168416222*0.1, 2.5406690227893254*0.1,
-                                             1.959130413902314*0.1, 0.13139198387980652*0.1, 1.80498551446445*0.1],
-                            'upper_bounds': [1.3498144060671078*0.8, 0.8892709168416222*0.8, 2.5406690227893254*0.8,
-                                             1.959130413902314*0.8, 0.13139198387980652*0.8, 1.80498551446445*0.8]})
+    dictBounds = {'names': ["C1.0", "C2.0", "C3.0", "C11", "C12", "C13"],
+                  'lower_bounds': [1.3498144060671078*0.1, 0.8892709168416222*0.1, 2.5406690227893254*0.1,
+                                   1.959130413902314*0.1, 0.13139198387980652*0.1, 1.80498551446445*0.1],
+                  'upper_bounds': [1.3498144060671078*0.8, 0.8892709168416222*0.8, 2.5406690227893254*0.8,
+                                   1.959130413902314*0.8, 0.13139198387980652*0.8, 1.80498551446445*0.8]}
+    constraints = h2o.H2OFrame(dictBounds)
     constraints = constraints[["names", "lower_bounds", "upper_bounds"]]
     run_print_model_performance('binomial', h2o_data, nfolds, constraints, x, y, printText, seed, 'coordinate_descent')
     run_print_model_performance('binomial', h2o_data, nfolds, constraints, x, y, printText, seed, 'irlsm')
@@ -81,22 +83,19 @@ def run_print_model_performance(family, train, nfolds, bc_constraints, x, y, pri
         h2o_model2.train(x=x, y=y, training_frame=train)
         print(h2o_model.model_performance(xval=True))
         coeff = h2o_model.coef()
-    coeff2 = h2o_model2.coef()
-    colNames = bc_constraints["names"]
-    lowerB = bc_constraints["lower_bounds"]
-    upperB = bc_constraints["upper_bounds"]
-    for count in range(0, len(colNames)):
-        assert (coeff[colNames[count,0]] >= lowerB[count,0] and coeff[colNames[count,0]] <= upperB[count,0]) or \
-           coeff[colNames[count,0]]==0, \
-        "coefficient exceed limits"
-        assert (coeff2[colNames[count,0]] >= lowerB[count,0] and coeff2[colNames[count,0]] <= upperB[count,0]) or \
-           coeff2[colNames[count,0]]==0, \
-        "coefficient exceed limits"
-#assert h2o_model.logloss() >= h2o_model2.logloss(), "Logloss without lambda_search {0} should exceed logloss with" \
-#                                                " lambda_saerch {1}".format(h2o_model.logloss(), h2o_model2.logloss())
-
-#   assert h2o_model.logloss() >= h2o_model2.logloss(), "Logloss without lambda_search {0} should exceed logloss with" \
- #                                                       " lambda_saerch {1}".format(h2o_model.logloss(), h2o_model2.logloss())
+        coeff2 = h2o_model2.coef()
+        colNames = bc_constraints["names"]
+        lowerB = bc_constraints["lower_bounds"]
+        upperB = bc_constraints["upper_bounds"]
+        for count in range(0, len(colNames)):
+            assert (coeff[colNames[count,0]] >= lowerB[count,0] and coeff[colNames[count,0]] <= upperB[count,0]) or \
+                   coeff[colNames[count,0]]==0,\
+                "coefficient exceed limits"
+            assert (coeff2[colNames[count,0]] >= lowerB[count,0] and coeff2[colNames[count,0]] <= upperB[count,0]) or\
+                   coeff2[colNames[count,0]]==0, \
+                "coefficient exceed limits"
+        #assert h2o_model.logloss() >= h2o_model2.logloss(), "Logloss without lambda_search {0} should exceed logloss with" \
+        #                                                " lambda_saerch {1}".format(h2o_model.logloss(), h2o_model2.logloss())
 
 
 if __name__ == "__main__":
