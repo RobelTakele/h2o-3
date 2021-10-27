@@ -1752,8 +1752,8 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
         x[i] = (x[i] - 2 * gramXY.xy[i]);
       double l = .5 * (ArrayUtils.innerProduct(x, beta) / _parms._obj_reg + gramXY.yy);
       _state._iter++;
-      
-      bc.applyAllBounds(beta);
+      if (_parms._solver.equals(Solver.IRLSM) && !_betaConstraintsOff)
+        bc.applyAllBounds(beta);
       _state.updateState(beta, l);
     }
 
@@ -1782,7 +1782,7 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
             if (!_checkPointFirstIter) {
               betaCnd = s == Solver.COORDINATE_DESCENT ? COD_solve(gram, _state._alpha, _state.lambda())
                       : ADMM_solve(gram.gram, gram.xy); // this will shrink betaCnd if needed but this call may be skipped
-              if (_parms._solver.equals(Solver.IRLSM))
+              if (_parms._solver.equals(Solver.IRLSM) && !_betaConstraintsOff) // admm_solve does not have beta constraints
                 bc.applyAllBounds(betaCnd);
             }
           }
@@ -1809,6 +1809,7 @@ public class GLM extends ModelBuilder<GLMModel,GLMParameters,GLMOutput> {
             Log.info(LogMsg("computed in " + (t2 - t1) + "+" + (t3 - t2) + "+" + (t4 - t3) + "=" + (t4 - t1) + "ms, step = " + ls.step() + ((_lslvr != null) ? ", l1solver " + _lslvr : "")));
           } else
             Log.info(LogMsg("computed in " + (t2 - t1) + "+" + (t3 - t2) + "=" + (t3 - t1) + "ms, step = " + 1 + ((_lslvr != null) ? ", l1solver " + _lslvr : "")));
+          
         }
       } catch (NonSPDMatrixException e) {
         Log.warn(LogMsg("Got Non SPD matrix, stopped."));
