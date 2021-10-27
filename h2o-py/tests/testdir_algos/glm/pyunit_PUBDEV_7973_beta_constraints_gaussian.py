@@ -78,7 +78,20 @@ def run_print_model_performance(family, train, nfolds, bc_constraints, x, y, pri
                                                lambda_search=True, solver=solver)
         h2o_model2.train(x=x, y=y, training_frame=train)
         print(h2o_model2.model_performance(xval=True))
-        #assert h2o_model.rmse() >= h2o_model2.rmse(), "RMSE without lambda_search {0} should exceed RMSE with" \
+        coeff = h2o_model.coef()
+        coeff2 = h2o_model2.coef()
+        colNames = bc_constraints["names"]
+        lowerB = bc_constraints["lower_bounds"]
+        upperB = bc_constraints["upper_bounds"]
+        for count in range(0, len(colNames)):
+            assert (coeff[colNames[count,0]] >= lowerB[count,0] and coeff[colNames[count,0]] <= upperB[count,0]) or \
+            coeff[colNames[count,0]]==0, "coefficient exceed limits"
+            assert (coeff2[colNames[count,0]] >= lowerB[count,0] and coeff2[colNames[count,0]] <= upperB[count,0]) or \
+            coeff2[colNames[count,0]]==0, "coefficient exceed limits"
+#assert h2o_model.logloss() >= h2o_model2.logloss(), "Logloss without lambda_search {0} should exceed logloss with" \
+#                                                " lambda_saerch {1}".format(h2o_model.logloss(), h2o_model2.logloss())
+
+#assert h2o_model.rmse() >= h2o_model2.rmse(), "RMSE without lambda_search {0} should exceed RMSE with" \
        #                                                 " lambda_saerch {1}".format(h2o_model.rmse(), h2o_model2.rmse())
 
 
