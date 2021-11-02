@@ -55,9 +55,8 @@ public class InfogramModel extends Model<InfogramModel, InfogramModel.InfogramPa
 
   @Override
   public Frame score(Frame fr, String destinationKey, Job j, boolean computeMetrics, CFuncRef customMetricFunc) {
-    throw new UnsupportedOperationException("Infogram does not support scoring on data.  It only provides information" +
-            " on predictors and choose admissible features for users.  Users can take the admissible features, build" +
-            "their own model and score with that model.");
+    score0(null, null);
+    return null;
   }
 
   public static class InfogramParameters extends Model.Parameters {
