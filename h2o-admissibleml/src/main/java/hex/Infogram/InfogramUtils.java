@@ -149,47 +149,6 @@ public class InfogramUtils {
     return modelNames;
   }
 
-  /**
-   * For core infogram, training frames are built by omitting the predictor of interest.  For fair infogram, 
-   * training frames are built with protected columns plus the predictor of interest.  The very last training frame
-   * for core infogram will contain all predictors.  For fair infogram, the very last training frame contains only the
-   * protected columns
-   * 
-   * @param topKPredictors
-   * @param trainingFrame
-   * @param baseFrame
-   * @param startInd
-   * @param numFrames
-   * @param buildCore
-   * @param lastModelInd
-   * @param generatedFrameKeys
-   * @return
-   */
-  public static Frame[] buildTrainingFrames(String[] topKPredictors, Frame trainingFrame, Frame baseFrame,
-                                            int startInd, int numFrames, boolean buildCore, int lastModelInd, 
-                                            List<Key<Frame>> generatedFrameKeys) {
-    Frame[] trainingFrames = new Frame[numFrames];
-    int finalFrameInd = startInd + numFrames;
-    int frameCount = 0;
-    for (int frameInd = startInd; frameInd < finalFrameInd; frameInd++) {
-      trainingFrames[frameCount] = new Frame(baseFrame);
-      if (buildCore) {
-        for (int vecInd = 0; vecInd < topKPredictors.length; vecInd++) {
-          if ((frameInd < lastModelInd) && (vecInd != frameInd)) // skip ith vector except last model
-            trainingFrames[frameCount].add(topKPredictors[vecInd], trainingFrame.vec(topKPredictors[vecInd]));
-          else if (frameInd == lastModelInd)// add all predictors
-            trainingFrames[frameCount].add(topKPredictors[vecInd], trainingFrame.vec(topKPredictors[vecInd]));
-        }
-      } else {
-        if (frameInd < lastModelInd) // add ith predictor
-          trainingFrames[frameCount].prepend(topKPredictors[frameInd], trainingFrame.vec(topKPredictors[frameInd]));
-      }
-      generatedFrameKeys.add(trainingFrames[frameCount]._key);
-      DKV.put(trainingFrames[frameCount++]);
-    }
-    return trainingFrames;
-  }
-
   /***
    * Build model parameters for model specified in infogram_algorithm.  Any model specific parameters can be specified
    * in infogram_algorithm_params.
@@ -234,30 +193,6 @@ public class InfogramUtils {
     for (int index = 0; index < numModel; index++)
       modelBuilders[index] = ModelBuilder.make(modelParams[index]);
     return modelBuilders;
-  }
-
-  /***
-   * Calculate the cmi for each predictor.  Refer to https://h2oai.atlassian.net/browse/PUBDEV-8075 section I step 2 
-   * for core infogram, or section II step 3 for fair infogram 
-   * 
-   * @param builders
-   * @param trainingFrames
-   * @param cmi
-   * @param startIndex
-   * @param numModels
-   * @param response
-   * @param generatedFrameKeys
-   */
-  public static void generateInfoGrams(ModelBuilder[] builders, Frame[] trainingFrames, double[] cmi, int startIndex,
-                                       int numModels, String response, List<Key<Frame>> generatedFrameKeys) {
-    for (int index = 0; index < numModels; index++) {
-      Model oneModel = builders[index].get();                   // extract model
-      Frame prediction = oneModel.score(trainingFrames[index]); // generate prediction
-      prediction.add(response, trainingFrames[index].vec(response));
-      Scope.track_generic(oneModel);
-      generatedFrameKeys.add(prediction._key);
-      cmi[index+startIndex] = new hex.Infogram.EstimateCMI(prediction).doAll(prediction)._meanCMI; // calculate raw CMI
-    }
   }
   
   public static void removeFromDKV(List<Key<Frame>> generatedFrameKeys) {

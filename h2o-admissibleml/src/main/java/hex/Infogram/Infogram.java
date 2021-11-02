@@ -13,12 +13,13 @@ import water.util.TwoDimTable;
 import water.DKV;
 
 import java.util.*;
+import java.util.stream.IntStream;
 
 import hex.genmodel.utils.DistributionFamily;
 
 import static hex.Infogram.InfogramUtils.*;
 import static hex.gam.MatrixFrameUtils.GamUtils.keepFrameKeys;
-
+import static water.util.ArrayUtils.sort;
 
 
 public class Infogram extends ModelBuilder<hex.Infogram.InfogramModel, hex.Infogram.InfogramModel.InfogramParameters,
@@ -223,8 +224,7 @@ public class Infogram extends ModelBuilder<hex.Infogram.InfogramModel, hex.Infog
         buildInfoGramsNRelevance(); // calculate relevance, cmi
         _job.update(1, "finished building models for Infogram ...");
         model._output.setDistribution(_parms._distribution);
-        model._output.copyCMIRelevance(_cmiRaw, _cmi, _topKPredictors, _varImp, _parms._cmi_threshold,
-                _parms._relevance_threshold); // copy over cmi, relevance of all predictors
+        copyCMIRelevance(model._output); // copy over cmi, relevance of all predictors
         _cmi = model._output._cmi;
         _cmiRelKey = model._output.generateCMIRelFrame(_buildCore);
         model._output.extractAdmissibleFeatures(_varImp, model._output._all_predictor_names, _cmi, _cmiRaw,
@@ -242,6 +242,38 @@ public class Infogram extends ModelBuilder<hex.Infogram.InfogramModel, hex.Infog
         model.update(_job._key);
         model.unlock(_job);
       }
+    }
+
+    /**
+     * Copy over info to model._output for _cmi_raw, _cmi, _topKFeatures,
+     * _all_predictor_names.  Derive _admissible for predictors if cmi >= cmi_threshold and 
+     * relevance >= relevance_threshold.  Derive _admissible_index as distance from point with cmi = 1 and 
+     * relevance = 1.  In addition, all arrays are sorted on _admissible_index.
+     */
+    private void copyCMIRelevance(InfogramModel.InfogramModelOutput modelOutput) {
+      modelOutput._cmi_raw = new double[_cmi.length];
+      System.arraycopy(_cmiRaw, 0, modelOutput._cmi_raw, 0, modelOutput._cmi_raw.length);
+      modelOutput._admissible_index = new double[_cmi.length];
+      modelOutput._admissible = new double[_cmi.length];
+      modelOutput._cmi = _cmi.clone();
+      modelOutput._topKFeatures = _topKPredictors.clone();
+      modelOutput._all_predictor_names = _topKPredictors.clone();
+      int numRows = _varImp.getRowDim();
+      String[] varRowHeaders = _varImp.getRowHeaders();
+      List<String> relNames = new ArrayList<String>(Arrays.asList(varRowHeaders));
+      modelOutput._relevance = new double[numRows];
+      for (int index = 0; index < numRows; index++) { // extract predictor with varimp >= threshold
+        int newIndex = relNames.indexOf(modelOutput._all_predictor_names[index]);
+        modelOutput._relevance[index] = (double) _varImp.get(newIndex, 1);
+        double relDiff = 1-modelOutput._relevance[index];
+        double cmiDiff = 1-_cmi[index];
+        modelOutput._admissible_index[index] = Math.sqrt(relDiff*relDiff+cmiDiff*cmiDiff);
+        modelOutput._admissible[index] = (modelOutput._relevance[index] >= _parms._relevance_threshold
+                && modelOutput._cmi[index] >= _parms._cmi_threshold) ? 1 : 0;
+      }
+      int[] indices = IntStream.range(0, _cmi.length).toArray();
+      sort(indices, modelOutput._admissible_index, -1, 1);
+      modelOutput.sortCMIRel(indices);
     }
 
     /***
@@ -284,18 +316,71 @@ public class Infogram extends ModelBuilder<hex.Infogram.InfogramModel, hex.Infog
      */
     private void buildModelCMINRelevance(int modelCount, int numModel, int lastModelInd) {
       boolean lastModelIndcluded = (modelCount+numModel >= lastModelInd);
-      Frame[] trainingFrames = buildTrainingFrames(_topKPredictors, _parms.train(), _baseOrSensitiveFrame, modelCount,
-              numModel, _buildCore, lastModelInd, _generatedFrameKeys); // generate training frame
+      Frame[] trainingFrames = buildTrainingFrames(_parms.train(), modelCount, numModel, lastModelInd);
       Model.Parameters[] modelParams = buildModelParameters(trainingFrames, _parms._infogram_algorithm_parameters,
               numModel, _parms._infogram_algorithm); // generate parameters
       ModelBuilder[] builders = ModelBuilderHelper.trainModelsParallel(buildModelBuilders(modelParams),
               numModel); // build models in parallel
       if (lastModelIndcluded) // extract relevance here for core infogram
         extractRelevance(builders[numModel-1].get(), modelParams[numModel-1]);
-      generateInfoGrams(builders, trainingFrames, _cmiRaw, modelCount, numModel, _parms._response_column, 
-              _generatedFrameKeys); // extract model, score, generate infogram
+      generateInfoGrams(builders, trainingFrames, modelCount, numModel); // extract model, score, generate infogram
     }
 
+    /***
+     * Calculate the cmi for each predictor.  Refer to https://h2oai.atlassian.net/browse/PUBDEV-8075 section I step 2 
+     * for core infogram, or section II step 3 for fair infogram 
+     *
+     * @param builders
+     * @param trainingFrames
+     * @param startIndex
+     * @param numModels
+     */
+    private void generateInfoGrams(ModelBuilder[] builders, Frame[] trainingFrames, int startIndex, int numModels) {
+      for (int index = 0; index < numModels; index++) {
+        Model oneModel = builders[index].get();                   // extract model
+        Frame prediction = oneModel.score(trainingFrames[index]); // generate prediction
+        prediction.add(_parms._response_column, trainingFrames[index].vec(_parms._response_column));
+        Scope.track_generic(oneModel);
+        _generatedFrameKeys.add(prediction._key);
+        _cmiRaw[index+startIndex] = new hex.Infogram.EstimateCMI(prediction).doAll(prediction)._meanCMI; // calculate raw CMI
+      }
+    }
+
+    /**
+     * For core infogram, training frames are built by omitting the predictor of interest.  For fair infogram, 
+     * training frames are built with protected columns plus the predictor of interest.  The very last training frame
+     * for core infogram will contain all predictors.  For fair infogram, the very last training frame contains only the
+     * protected columns
+     *
+     * @param trainingFrame
+     * @param startInd
+     * @param numFrames
+     * @param lastModelInd
+     * @return
+     */
+    private Frame[] buildTrainingFrames(Frame trainingFrame, int startInd, int numFrames, int lastModelInd) {
+      Frame[] trainingFrames = new Frame[numFrames];
+      int finalFrameInd = startInd + numFrames;
+      int frameCount = 0;
+      for (int frameInd = startInd; frameInd < finalFrameInd; frameInd++) {
+        trainingFrames[frameCount] = new Frame(_baseOrSensitiveFrame);
+        if (_buildCore) {
+          for (int vecInd = 0; vecInd < _topKPredictors.length; vecInd++) {
+            if ((frameInd < lastModelInd) && (vecInd != frameInd)) // skip ith vector except last model
+              trainingFrames[frameCount].add(_topKPredictors[vecInd], trainingFrame.vec(_topKPredictors[vecInd]));
+            else if (frameInd == lastModelInd)// add all predictors
+              trainingFrames[frameCount].add(_topKPredictors[vecInd], trainingFrame.vec(_topKPredictors[vecInd]));
+          }
+        } else {
+          if (frameInd < lastModelInd) // add ith predictor
+            trainingFrames[frameCount].prepend(_topKPredictors[frameInd], trainingFrame.vec(_topKPredictors[frameInd]));
+        }
+        _generatedFrameKeys.add(trainingFrames[frameCount]._key);
+        DKV.put(trainingFrames[frameCount++]);
+      }
+      return trainingFrames;
+    }
+    
     /**
      * For core infogram, the last model is the one with all predictors.  In this case, the relevance is basically the
      * variable importance.  For fair infogram, the last model is the one with all the predictors minus the protected

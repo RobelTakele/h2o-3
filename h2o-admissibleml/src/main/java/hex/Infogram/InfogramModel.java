@@ -271,51 +271,12 @@ public class InfogramModel extends Model<InfogramModel, InfogramModel.InfogramPa
       return cmiRelFrame._key;
     }
 
-    /**
-     * Copy over info to model._output for _cmi_raw, _cmi, _topKFeatures,
-     * _all_predictor_names.  Derive _admissible for predictors if cmi >= cmi_threshold and 
-     * relevance >= relevance_threshold.  Derive _admissible_index as distance from point with cmi = 1 and 
-     * relevance = 1.  In addition, all arrays are sorted on _admissible_index.
-     * 
-     * @param cmiRaw
-     * @param cmi
-     * @param topKPredictors
-     * @param varImp
-     * @param cmiThreshold
-     * @param relThreshold
-     */
-    public void copyCMIRelevance( double[] cmiRaw, double[] cmi, String[] topKPredictors,
-                                  TwoDimTable varImp, double cmiThreshold, double relThreshold) {
-      _cmi_raw = new double[cmi.length];
-      System.arraycopy(cmiRaw, 0, _cmi_raw, 0, _cmi_raw.length);
-      _admissible_index = new double[cmi.length];
-      _admissible = new double[cmi.length];
-      _cmi = cmi.clone();
-      _topKFeatures = topKPredictors.clone();
-      _all_predictor_names = topKPredictors.clone();
-      int numRows = varImp.getRowDim();
-      String[] varRowHeaders = varImp.getRowHeaders();
-      List<String> relNames = new ArrayList<String>(Arrays.asList(varRowHeaders));
-      _relevance = new double[numRows];
-      for (int index = 0; index < numRows; index++) { // extract predictor with varimp >= threshold
-        int newIndex = relNames.indexOf(_all_predictor_names[index]);
-        _relevance[index] = (double) varImp.get(newIndex, 1);
-        double relDiff = 1-_relevance[index];
-        double cmiDiff = 1-cmi[index];
-        _admissible_index[index] = Math.sqrt(relDiff*relDiff+cmiDiff*cmiDiff);
-        _admissible[index] = (_relevance[index] >= relThreshold && _cmi[index] >= cmiThreshold) ? 1 : 0;
-      }
-      int[] indices = IntStream.range(0, cmi.length).toArray();
-      sort(indices, _admissible_index, -1, 1);
-      sortCMIRel(indices);
-    }
-
     /***
      * This method will sort _relvance, _cmi_raw, _cmi_normalize, _all_predictor_names such that features that
      * are closest to upper right corner of infogram comes first with the order specified in the index
      * @param indices
      */
-    private void sortCMIRel(int[] indices) {
+    void sortCMIRel(int[] indices) {
       int indexLength = indices.length;
       double[] rel = new double[indexLength];
       double[] cmiRaw = new double[indexLength];
