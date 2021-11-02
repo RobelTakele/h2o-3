@@ -224,7 +224,7 @@ class H2OEstimator(ModelBase):
                                             required=self._options_.get('requires_training_frame', True) and not has_default_training_frame)
         validation_frame = H2OFrame._validate(validation_frame, 'validation_frame')
         assert_is_type(y, None, int, str)
-        assert_is_type(x, None, int, str, H2OEstimator, [str, int], {str, int})
+        assert_is_type(x, None, int, str, ModelBase, [str, int], {str, int})
         assert_is_type(ignored_columns, None, [str, int], {str, int})
         assert_is_type(offset_column, None, int, str)
         assert_is_type(fold_column, None, int, str)
