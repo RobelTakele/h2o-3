@@ -70,17 +70,17 @@
 #' @param protected_columns Predictors that are to be excluded from model due to them being discriminatory or inappropriate for whatever
 #'        reason.
 #' @param net_information_threshold Conditional information for core infogram threshold between 0 and 1 that is used to decide whether a
-#'        predictor's conditional information is high enough to be chosen into the admissible feature set.  If not set,
-#'        will default to 0.1. Defaults to -1.
+#'        predictor's conditional information is high enough to be chosen into the admissible feature set.  Default to
+#'        -1 which will be set to 0.1 eventually. Defaults to -1.
 #' @param total_information_threshold Relevance threshold for core infogram between 0 and 1 that is used to decide whether a predictor's relevance
-#'        level is high enough to be chosen into the admissible feature set.  If not set, will default to 0.1. Defaults
-#'        to -1.
+#'        level is high enough to be chosen into the admissible feature set.  Default to -1 which will be set to 0.1
+#'        eventually. Defaults to -1.
 #' @param safety_index_threshold Conditional information for fair infogram threshold between 0 and 1 that is used to decide whether a
-#'        predictor's conditional information is high enough to be chosen into the admissible feature set.  If not set,
-#'        will default to 0.1. Defaults to -1.
+#'        predictor's conditional information is high enough to be chosen into the admissible feature set.  Default to
+#'        -1 which will be set to 0.1 eventually. Defaults to -1.
 #' @param relevance_index_threshold Relevance threshold for fair infogram between 0 and 1 that is used to decide whether a predictor's relevance
-#'        level is high enough to be chosen into the admissible feature set.  If not set, will default to 0.1. Defaults
-#'        to -1.
+#'        level is high enough to be chosen into the admissible feature set.  Default to -1 which will be set to 0.1
+#'        eventually. Defaults to -1.
 #' @param data_fraction Fraction of training frame to use to build the infogram model.  Default to 1.0 Defaults to 1.
 #' @param top_n_features Number of top k variables to consider based on the varimp.  Default to 0.0 which is to consider all
 #'        predictors. Defaults to 50.

@@ -45,7 +45,6 @@ public class InfogramV3 extends ModelBuilderSchema<Infogram, InfogramV3, Infogra
             "balance_classes",
             "class_sampling_factors",
             "max_after_balance_size",
-            "max_confusion_matrix_size",
             "max_runtime_secs",
             "custom_metric_func",
             "auc_type",
@@ -107,13 +106,6 @@ public class InfogramV3 extends ModelBuilderSchema<Infogram, InfogramV3, Infogra
             "Requires balance_classes.", /* dmin=1e-3, */ level = API.Level.expert, direction = API.Direction.INOUT)
     public float max_after_balance_size;
 
-    /** For classification models, the maximum size (in terms of classes) of
-     *  the confusion matrix for it to be printed. This option is meant to
-     *  avoid printing extremely large confusion matrices.  */
-    @API(help = "Maximum size (# classes) for confusion matrices to be printed in the Logs", 
-            level = API.Level.secondary, direction = API.Direction.INOUT)
-    public int max_confusion_matrix_size;
-
     @API(help = "Machine learning algorithm chosen to build the infogram.  AUTO default to GBM.", values={"AUTO",
             "deeplearning", "drf", "gbm", "glm", "xgboost"}, level = API.Level.expert, 
             direction = API.Direction.INOUT, gridable=true)
@@ -128,26 +120,26 @@ public class InfogramV3 extends ModelBuilderSchema<Infogram, InfogramV3, Infogra
     public String[] protected_columns;
 
     @API(help = "Conditional information for core infogram threshold between 0 and 1 that is used to decide whether a " +
-            "predictor's conditional information is high enough to be chosen into the admissible feature set.  If not" +
-            " set, will default to 0.1.",
+            "predictor's conditional information is high enough to be chosen into the admissible feature set.  " +
+            "Default to -1 which will be set to 0.1 eventually.",
             level = API.Level.secondary, gridable = true)
     public double net_information_threshold;
 
     @API(help = "Conditional information for fair infogram threshold between 0 and 1 that is used to decide whether a" +
-            " predictor's conditional information is high enough to be chosen into the admissible feature set.  If not" +
-            " set, will default to 0.1.",
+            " predictor's conditional information is high enough to be chosen into the admissible feature set.  " +
+            "Default to -1 which will be set to 0.1 eventually.",
             level = API.Level.secondary, gridable = true)
     public double safety_index_threshold;
 
     @API(help = "Relevance threshold for fair infogram between 0 and 1 that is used to decide whether a predictor's" +
-            " relevance level is high enough to be chosen into the admissible feature set.  If not set, will default" +
-            " to 0.1.", 
+            " relevance level is high enough to be chosen into the admissible feature set.  Default to -1 which will" +
+            " be set to 0.1 eventually.", 
             level = API.Level.secondary, gridable = true)
     public double relevance_index_threshold;
 
     @API(help = "Relevance threshold for core infogram between 0 and 1 that is used to decide whether a predictor's" +
-            " relevance level is high enough to be chosen into the admissible feature set.  If not set, will default " +
-            "to 0.1.",
+            " relevance level is high enough to be chosen into the admissible feature set.  Default to -1 which will" +
+            " be set to 0.1 eventually.",
             level = API.Level.secondary, gridable = true)
     public double total_information_threshold;
 

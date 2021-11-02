@@ -61,7 +61,6 @@ class H2OInfogram(H2OEstimator):
                  balance_classes=False,  # type: bool
                  class_sampling_factors=None,  # type: Optional[List[float]]
                  max_after_balance_size=5.0,  # type: float
-                 max_confusion_matrix_size=20,  # type: int
                  max_runtime_secs=0.0,  # type: float
                  custom_metric_func=None,  # type: Optional[str]
                  auc_type="auto",  # type: Literal["auto", "none", "macro_ovr", "weighted_ovr", "macro_ovo", "weighted_ovo"]
@@ -170,9 +169,6 @@ class H2OInfogram(H2OEstimator):
                less than 1.0). Requires balance_classes.
                Defaults to ``5.0``.
         :type max_after_balance_size: float
-        :param max_confusion_matrix_size: Maximum size (# classes) for confusion matrices to be printed in the Logs
-               Defaults to ``20``.
-        :type max_confusion_matrix_size: int
         :param max_runtime_secs: Maximum allowed runtime in seconds for model training. Use 0 to disable.
                Defaults to ``0.0``.
         :type max_runtime_secs: float
@@ -195,22 +191,22 @@ class H2OInfogram(H2OEstimator):
         :type protected_columns: List[str], optional
         :param net_information_threshold: Conditional information for core infogram threshold between 0 and 1 that is
                used to decide whether a predictor's conditional information is high enough to be chosen into the
-               admissible feature set.  If not set, will default to 0.1.
+               admissible feature set.  Default to -1 which will be set to 0.1 eventually.
                Defaults to ``-1.0``.
         :type net_information_threshold: float
         :param total_information_threshold: Relevance threshold for core infogram between 0 and 1 that is used to decide
-               whether a predictor's relevance level is high enough to be chosen into the admissible feature set.  If
-               not set, will default to 0.1.
+               whether a predictor's relevance level is high enough to be chosen into the admissible feature set.
+               Default to -1 which will be set to 0.1 eventually.
                Defaults to ``-1.0``.
         :type total_information_threshold: float
         :param safety_index_threshold: Conditional information for fair infogram threshold between 0 and 1 that is used
                to decide whether a predictor's conditional information is high enough to be chosen into the admissible
-               feature set.  If not set, will default to 0.1.
+               feature set.  Default to -1 which will be set to 0.1 eventually.
                Defaults to ``-1.0``.
         :type safety_index_threshold: float
         :param relevance_index_threshold: Relevance threshold for fair infogram between 0 and 1 that is used to decide
-               whether a predictor's relevance level is high enough to be chosen into the admissible feature set.  If
-               not set, will default to 0.1.
+               whether a predictor's relevance level is high enough to be chosen into the admissible feature set.
+               Default to -1 which will be set to 0.1 eventually.
                Defaults to ``-1.0``.
         :type relevance_index_threshold: float
         :param data_fraction: Fraction of training frame to use to build the infogram model.  Default to 1.0
@@ -251,7 +247,6 @@ class H2OInfogram(H2OEstimator):
         self.balance_classes = balance_classes
         self.class_sampling_factors = class_sampling_factors
         self.max_after_balance_size = max_after_balance_size
-        self.max_confusion_matrix_size = max_confusion_matrix_size
         self.max_runtime_secs = max_runtime_secs
         self.custom_metric_func = custom_metric_func
         self.auc_type = auc_type
@@ -616,20 +611,6 @@ class H2OInfogram(H2OEstimator):
         self._parms["max_after_balance_size"] = max_after_balance_size
 
     @property
-    def max_confusion_matrix_size(self):
-        """
-        Maximum size (# classes) for confusion matrices to be printed in the Logs
-
-        Type: ``int``, defaults to ``20``.
-        """
-        return self._parms.get("max_confusion_matrix_size")
-
-    @max_confusion_matrix_size.setter
-    def max_confusion_matrix_size(self, max_confusion_matrix_size):
-        assert_is_type(max_confusion_matrix_size, None, int)
-        self._parms["max_confusion_matrix_size"] = max_confusion_matrix_size
-
-    @property
     def max_runtime_secs(self):
         """
         Maximum allowed runtime in seconds for model training. Use 0 to disable.
@@ -732,8 +713,8 @@ class H2OInfogram(H2OEstimator):
     def net_information_threshold(self):
         """
         Conditional information for core infogram threshold between 0 and 1 that is used to decide whether a predictor's
-        conditional information is high enough to be chosen into the admissible feature set.  If not set, will default
-        to 0.1.
+        conditional information is high enough to be chosen into the admissible feature set.  Default to -1 which will
+        be set to 0.1 eventually.
 
         Type: ``float``, defaults to ``-1.0``.
         """
@@ -754,7 +735,8 @@ class H2OInfogram(H2OEstimator):
     def total_information_threshold(self):
         """
         Relevance threshold for core infogram between 0 and 1 that is used to decide whether a predictor's relevance
-        level is high enough to be chosen into the admissible feature set.  If not set, will default to 0.1.
+        level is high enough to be chosen into the admissible feature set.  Default to -1 which will be set to 0.1
+        eventually.
 
         Type: ``float``, defaults to ``-1.0``.
         """
@@ -775,8 +757,8 @@ class H2OInfogram(H2OEstimator):
     def safety_index_threshold(self):
         """
         Conditional information for fair infogram threshold between 0 and 1 that is used to decide whether a predictor's
-        conditional information is high enough to be chosen into the admissible feature set.  If not set, will default
-        to 0.1.
+        conditional information is high enough to be chosen into the admissible feature set.  Default to -1 which will
+        be set to 0.1 eventually.
 
         Type: ``float``, defaults to ``-1.0``.
         """
@@ -797,7 +779,8 @@ class H2OInfogram(H2OEstimator):
     def relevance_index_threshold(self):
         """
         Relevance threshold for fair infogram between 0 and 1 that is used to decide whether a predictor's relevance
-        level is high enough to be chosen into the admissible feature set.  If not set, will default to 0.1.
+        level is high enough to be chosen into the admissible feature set.  Default to -1 which will be set to 0.1
+        eventually.
 
         Type: ``float``, defaults to ``-1.0``.
         """
