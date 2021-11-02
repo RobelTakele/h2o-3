@@ -170,8 +170,7 @@ class H2OInfogram(H2OEstimator):
                less than 1.0). Requires balance_classes.
                Defaults to ``5.0``.
         :type max_after_balance_size: float
-        :param max_confusion_matrix_size: [Deprecated] Maximum size (# classes) for confusion matrices to be printed in
-               the Logs
+        :param max_confusion_matrix_size: Maximum size (# classes) for confusion matrices to be printed in the Logs
                Defaults to ``20``.
         :type max_confusion_matrix_size: int
         :param max_runtime_secs: Maximum allowed runtime in seconds for model training. Use 0 to disable.
@@ -619,7 +618,7 @@ class H2OInfogram(H2OEstimator):
     @property
     def max_confusion_matrix_size(self):
         """
-        [Deprecated] Maximum size (# classes) for confusion matrices to be printed in the Logs
+        Maximum size (# classes) for confusion matrices to be printed in the Logs
 
         Type: ``int``, defaults to ``20``.
         """
@@ -742,7 +741,7 @@ class H2OInfogram(H2OEstimator):
 
     @net_information_threshold.setter
     def net_information_threshold(self, net_information_threshold):
-        if net_information_threshold <= 4.940656458e-324: # not set
+        if net_information_threshold <= -1: # not set
             if self._parms["protected_columns"] is None:
                 self._parms["net_information_threshold"]=0.1
         else:  # set
@@ -763,7 +762,7 @@ class H2OInfogram(H2OEstimator):
 
     @total_information_threshold.setter
     def total_information_threshold(self, total_information_threshold):
-        if total_information_threshold <= 4.940656458e-324: # not set
+        if total_information_threshold <= -1: # not set
             if self._parms["protected_columns"] is None:
                 self._parms["total_information_threshold"] = 0.1
         else:
@@ -785,7 +784,7 @@ class H2OInfogram(H2OEstimator):
 
     @safety_index_threshold.setter
     def safety_index_threshold(self, safety_index_threshold):
-        if safety_index_threshold <= 4.940656458e-324: # not set
+        if safety_index_threshold <= -1: # not set
             if self._parms["protected_columns"] is not None:
                 self._parms["safety_index_threshold"]=0.1
         else: # it is set
@@ -806,7 +805,7 @@ class H2OInfogram(H2OEstimator):
 
     @relevance_index_threshold.setter
     def relevance_index_threshold(self, relevance_index_threshold):
-        if relevance_index_threshold <= 4.940656458e-324: # not set
+        if relevance_index_threshold <= -1: # not set
             if self._parms["protected_columns"] is not None:    # fair infogram
                 self._parms["relevance_index_threshold"]=0.1
         else: # it is set

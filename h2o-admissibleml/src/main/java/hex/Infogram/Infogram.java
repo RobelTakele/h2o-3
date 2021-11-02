@@ -9,7 +9,6 @@ import water.Key;
 import water.Scope;
 import water.exceptions.H2OModelBuilderIllegalArgumentException;
 import water.fvec.Frame;
-import water.fvec.Vec;
 import water.util.TwoDimTable;
 import water.DKV;
 
@@ -193,11 +192,14 @@ public class Infogram extends ModelBuilder<hex.Infogram.InfogramModel, hex.Infog
   }
 
   private class InfogramDriver extends Driver {
-    void generateBasicFrame() {
+    void prepareModelTrainingFrame() {
+      _generatedFrameKeys = new ArrayList<>(); // generated infogram model plus one for safe Infogram
       String[] eligiblePredictors = extractPredictors(_parms);  // exclude senstive attributes if applicable
       _baseOrSensitiveFrame = extractTrainingFrame(_parms, _parms._protected_columns, 1, _parms.train().clone());
-      _parms.fillImpl(); // copy over model specific parameters to build infogram
+      _parms.extraModelSpecificParams(); // copy over model specific parameters to build infogram
       _topKPredictors = extractTopKPredictors(_parms, _parms.train(), eligiblePredictors, _generatedFrameKeys); // extract topK predictors
+      _numModels = 1 + _topKPredictors.length;
+      _modelDescription = generateModelDescription(_topKPredictors, _parms._protected_columns);
     }
 
     @Override
@@ -206,10 +208,7 @@ public class Infogram extends ModelBuilder<hex.Infogram.InfogramModel, hex.Infog
       if (error_count() > 0)
         throw H2OModelBuilderIllegalArgumentException.makeFromBuilder(Infogram.this);
       _job.update(0, "Initializing model training");
-      _generatedFrameKeys = new ArrayList<>(); // generated infogram model plus one for safe Infogram
-      generateBasicFrame(); // generate training frame with predictors and sensitive features (if specified)
-      _numModels = 1 + _topKPredictors.length;
-      _modelDescription = generateModelDescription(_topKPredictors, _parms._protected_columns);
+      prepareModelTrainingFrame(); // generate training frame with predictors and sensitive features (if specified)
       buildModel();
     }
     // todo:  add max_runtime_secs restrictions

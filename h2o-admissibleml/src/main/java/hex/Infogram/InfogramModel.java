@@ -3,15 +3,10 @@ package hex.Infogram;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import hex.*;
-import hex.deeplearning.DeepLearningModel;
 import hex.genmodel.utils.DistributionFamily;
 import hex.glm.GLMModel;
 import hex.schemas.*;
-import hex.tree.drf.DRFModel;
-import hex.tree.gbm.GBMModel;
-import hex.tree.xgboost.XGBoostModel;
 import water.*;
-import water.api.schemas3.ModelParametersSchemaV3;
 import water.fvec.Frame;
 import water.fvec.Vec;
 import water.udf.CFuncRef;
@@ -24,7 +19,6 @@ import java.util.stream.IntStream;
 import static hex.Infogram.InfogramModel.InfogramParameters.Algorithm.glm;
 import static hex.genmodel.utils.DistributionFamily.*;
 import static hex.glm.GLMModel.GLMParameters.Family.binomial;
-import static hex.util.DistributionUtils.distributionToFamily;
 import static water.util.ArrayUtils.sort;
 
 public class InfogramModel extends Model<InfogramModel, InfogramModel.InfogramParameters, InfogramModel.InfogramModelOutput> {
@@ -126,10 +120,10 @@ public class InfogramModel extends Model<InfogramModel, InfogramModel.InfogramPa
      * 2. Next, it will copy the parameters that are common to all algorithms from InfogramParameters to 
      * _algorithm_parameters.
      */
-    public void fillImpl() {
+    public void extraModelSpecificParams() {
       Properties p = new Properties();
       boolean fillParams;
-      List<String> excludeList = new ArrayList<>(); // prevent overriding of parameters set by user
+      ArrayList<String> excludeList = new ArrayList<>(); // prevent overriding of parameters set by user
       fillParams = _infogram_algorithm_params != null && !_infogram_algorithm_params.isEmpty();
 
       if (fillParams) { // only execute when algorithm specific parameters are filled in by user
@@ -147,52 +141,8 @@ public class InfogramModel extends Model<InfogramModel, InfogramModel.InfogramPa
           }
         }
       }
-
-      ModelParametersSchemaV3 paramsSchema;
-      Model.Parameters params;
-      Algorithm algoName = _infogram_algorithm;
-      switch (algoName) {
-        case glm:
-          paramsSchema = new GLMV3.GLMParametersV3();
-          params = new GLMModel.GLMParameters();
-          excludeList.add("_distribution");
-          ((GLMModel.GLMParameters) params)._family = distributionToFamily(this._distribution);
-          break;
-        case AUTO: // auto defaults to GBM
-        case gbm:
-          paramsSchema = new GBMV3.GBMParametersV3();
-          params = new GBMModel.GBMParameters();
-          if (!excludeList.contains("_stopping_tolerance")) {
-            params._stopping_tolerance = 0.01;  // set default to 0.01
-            excludeList.add("_stopping_tolerance");
-          }
-          break;
-        case drf:
-          paramsSchema = new DRFV3.DRFParametersV3();
-          params = new DRFModel.DRFParameters();
-          if (!excludeList.contains("_stopping_tolerance")) {
-            params._stopping_tolerance = 0.01;  // set default to 0.01
-            excludeList.add("_stopping_tolerance");
-          }
-          break;
-        case deeplearning:
-          paramsSchema = new DeepLearningV3.DeepLearningParametersV3();
-          params = new DeepLearningModel.DeepLearningParameters();
-          break;
-        case xgboost:
-          paramsSchema = new XGBoostV3.XGBoostParametersV3();
-          params = new XGBoostModel.XGBoostParameters();
-          break;
-        default:
-          throw new UnsupportedOperationException("Unknown algo: " + algoName);
-      }
-
-      paramsSchema.init_meta();
-      _infogram_algorithm_parameters = (Model.Parameters) paramsSchema
-              .fillFromImpl(params)
-              .fillFromParms(p, true)
-              .createAndFillImpl();
-
+      
+      InfogramV3.InfogramParametersV3.generateModelParams(this, p, excludeList);
       copyInfoGramParams(excludeList); // copy over InfogramParameters that are applicable to model specific algos
     }
 

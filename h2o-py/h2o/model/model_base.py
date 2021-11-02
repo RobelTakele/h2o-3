@@ -141,6 +141,9 @@ class ModelBase(h2o_meta(Keyed)):
             self.show()
         return ""
 
+    def extract_x_from_model(self, model):
+        raise ValueError("model %s is not an infogram model and does not contains predictors." % model.key)
+
     def predict_leaf_node_assignment(self, test_data, type="Path"):
         """
         Predict on a dataset and return the leaf node assignment (only for tree-based models).

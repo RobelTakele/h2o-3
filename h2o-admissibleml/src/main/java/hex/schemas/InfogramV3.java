@@ -13,11 +13,9 @@ import hex.tree.xgboost.XGBoostModel;
 import water.api.API;
 import water.api.schemas3.KeyV3;
 import water.api.schemas3.ModelParametersSchemaV3;
+import static hex.util.DistributionUtils.distributionToFamily;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 public class InfogramV3 extends ModelBuilderSchema<Infogram, InfogramV3, InfogramV3.InfogramParametersV3> {
   public static final class InfogramParametersV3 extends ModelParametersSchemaV3<InfogramModel.InfogramParameters, InfogramParametersV3> {
@@ -179,6 +177,53 @@ public class InfogramV3 extends ModelBuilderSchema<Infogram, InfogramV3, Infogra
         super.fillImpl(impl);
       }
       return impl;
+    }
+    
+    public static void generateModelParams(InfogramModel.InfogramParameters parms, Properties p, 
+                                                ArrayList<String> excludeList) {
+      ModelParametersSchemaV3 paramsSchema;
+      Model.Parameters params;
+      switch (parms._infogram_algorithm) {
+        case glm:
+          paramsSchema = new GLMV3.GLMParametersV3();
+          params = new GLMModel.GLMParameters();
+          excludeList.add("_distribution");
+          ((GLMModel.GLMParameters) params)._family = distributionToFamily(parms._distribution);
+          break;
+        case AUTO: // auto defaults to GBM
+        case gbm:
+          paramsSchema = new GBMV3.GBMParametersV3();
+          params = new GBMModel.GBMParameters();
+          if (!excludeList.contains("_stopping_tolerance")) {
+            params._stopping_tolerance = 0.01;  // set default to 0.01
+            excludeList.add("_stopping_tolerance");
+          }
+          break;
+        case drf:
+          paramsSchema = new DRFV3.DRFParametersV3();
+          params = new DRFModel.DRFParameters();
+          if (!excludeList.contains("_stopping_tolerance")) {
+            params._stopping_tolerance = 0.01;  // set default to 0.01
+            excludeList.add("_stopping_tolerance");
+          }
+          break;
+        case deeplearning:
+          paramsSchema = new DeepLearningV3.DeepLearningParametersV3();
+          params = new DeepLearningModel.DeepLearningParameters();
+          break;
+        case xgboost:
+          paramsSchema = new XGBoostV3.XGBoostParametersV3();
+          params = new XGBoostModel.XGBoostParameters();
+          break;
+        default:
+          throw new UnsupportedOperationException("Unknown algo: " + parms._infogram_algorithm);
+      }
+
+      paramsSchema.init_meta();
+      parms._infogram_algorithm_parameters =  (Model.Parameters) paramsSchema
+              .fillFromImpl(params)
+              .fillFromParms(p, true)
+              .createAndFillImpl();
     }
     
     Properties generateProperties(String algoParms) {

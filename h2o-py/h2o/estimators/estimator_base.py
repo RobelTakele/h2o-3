@@ -94,9 +94,6 @@ class H2OEstimator(ModelBase):
         self._job = None
         model_json = h2o.api("GET /%d/Models/%s" % (self._rest_version, model_key))["models"][0]
         self._resolve_model(model_key, model_json)
-
-    def extract_x_from_model(self, model):
-        raise ValueError("model %s is not an infogram model and does not contains predictors." % model.key)
     
     def train(self, x=None, y=None, training_frame=None, offset_column=None, fold_column=None,
               weights_column=None, validation_frame=None, max_runtime_secs=None, ignored_columns=None,
