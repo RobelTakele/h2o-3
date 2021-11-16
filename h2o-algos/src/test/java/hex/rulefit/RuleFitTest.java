@@ -2,9 +2,12 @@ package hex.rulefit;
 
 import hex.ConfusionMatrix;
 import hex.ScoringInfo;
+import hex.genmodel.algos.tree.SharedTreeSubgraph;
 import hex.genmodel.utils.DistributionFamily;
 import hex.glm.GLM;
 import hex.glm.GLMModel;
+import hex.tree.drf.DRF;
+import hex.tree.drf.DRFModel;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -23,15 +26,75 @@ import water.runner.H2ORunner;
 import water.test.util.ConfusionMatrixUtils;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.*;
 
 @RunWith(H2ORunner.class)
 @CloudSize(1)
 public class RuleFitTest extends TestUtil {
+    
+    
+    @Test
+    public void reproTree() {
+        DRFModel model = null;
+        Frame fr = null;
+        try {
+            fr = parseTestFile("./smalldata/gbm_test/titanic.csv");
+
+            String responseColumnName = "survived";
+            asFactor(fr, responseColumnName);
+            asFactor(fr, "pclass");
+            fr.remove("name").remove();
+            fr.remove("ticket").remove();
+            fr.remove("cabin").remove();
+            fr.remove("embarked").remove();
+            fr.remove("boat").remove();
+            fr.remove("body").remove();
+            fr.remove("home.dest").remove();
+            DKV.put(fr);
+            
+            
+            DRFModel.DRFParameters treeParameters = new DRFModel.DRFParameters();
+            treeParameters._response_column = responseColumnName;
+            treeParameters._train = fr._key;
+            treeParameters._seed =1234;
+            treeParameters._distribution =  DistributionFamily.bernoulli;
+            treeParameters._ntrees = 50;
+            treeParameters._max_depth = 4;
+
+            model = new DRF(treeParameters).trainModel().get();
+            
+            SharedTreeSubgraph sharedTreeSubgraph1 = model.getSharedTreeSubgraph(29, 0);
+
+            SharedTreeSubgraph sharedTreeSubgraph2 = model.getSharedTreeSubgraph(31, 0);
+
+            List<Rule> rules1 = new ArrayList<>();
+            rules1.addAll(Rule.extractRulesFromTree(sharedTreeSubgraph1, 1, null));
+            //filter weird rule
+            Rule rule1 = rules1.stream().filter(rule -> rule.varName.equals("M1T29N37")).collect(Collectors.toList()).get(0);
+
+            List<Rule> rules2 = new ArrayList<>();
+            rules2.addAll(Rule.extractRulesFromTree(sharedTreeSubgraph2, 2, null));
+            //filter weeird rule
+            Rule rule2 = rules2.stream().filter(rule -> rule.varName.equals("M2T31N37")).collect(Collectors.toList()).get(0);
+            
+            // rule1 is created from tree path sharedTreeSubgraph1.root to sharedTreeSubgraph1.nodesArray.get(14)
+            // rule2 is created from tree path sharedTreeSubgraph2.root to sharedTreeSubgraph2.nodesArray.get(14)
+            assertTrue(rule1.languageRule.equals(rule2.languageRule));
+            
+           // but this fails and it is weird:
+            assertTrue(rule1.support == rule2.support);
+            // meaning this is weird
+            assertTrue(sharedTreeSubgraph1.nodesArray.get(14).getWeight() == sharedTreeSubgraph2.nodesArray.get(14).getWeight());
+            
+        } finally {
+        if (fr != null) fr.remove();
+        if (model != null) model.remove();
+        }
+    }
+    
 
     @Test
     public void testBestPracticeExampleWithoutScope() {

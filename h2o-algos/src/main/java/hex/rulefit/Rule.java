@@ -15,21 +15,23 @@ public class Rule extends Iced {
     String languageRule;
     double coefficient;
     String varName;
+    int support;
 
-    public Rule(Condition[] conditions, double predictionValue, String varName) {
+    public Rule(Condition[] conditions, double predictionValue, String varName, int support) {
         this.conditions = conditions;
         this.predictionValue = predictionValue;
         this.varName = varName;
         this.languageRule = generateLanguageRule();
-        
+        this.support = support;
     }
 
-    public Rule(Condition[] conditions, double predictionValue, String varName,  double coefficient) {
+    public Rule(Condition[] conditions, double predictionValue, String varName,  double coefficient, int support) {
         this.conditions = conditions;
         this.predictionValue = predictionValue;
         this.varName = varName; 
         this.coefficient = coefficient;
         this.languageRule = generateLanguageRule();
+        this.support = support;
     }
 
     public void setCoefficient(double coefficient) {
@@ -101,7 +103,7 @@ public class Rule extends Iced {
             if (classString != null) {
                 varName += classString;
             }
-            rules.add(new Rule(conditions.toArray(new Condition[]{}), node.getPredValue(), varName));
+            rules.add(new Rule(conditions.toArray(new Condition[]{}), node.getPredValue(), varName, (int) node.getWeight())); //todo check that all leaf nodes give together nlines -> they do
         } else {
             // traverse
             int colId = node.getColId();

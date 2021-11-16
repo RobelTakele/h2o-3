@@ -122,10 +122,11 @@ public class RuleFitUtils {
                 .collect(Collectors.groupingBy(rule -> rule.languageRule))
                 .entrySet().stream()
                 .map(e -> e.getValue().stream()
-                        .reduce((r1,r2) -> new Rule(r1.conditions, r1.predictionValue, r1.varName + ", " + r2.varName, r1.coefficient + r2.coefficient)))
+                        .reduce((r1,r2) -> new Rule(r1.conditions, r1.predictionValue, r1.varName + ", " + r2.varName, r1.coefficient + r2.coefficient, r1.support)))
                 .map(f -> f.get())
                 .collect(Collectors.toList());
-
+        //todo check that merged rules are having the same support / they should because they are the same but it looks like they dont have (hex.rulefit.RuleFitTest.reproTree)
+        
         // add linear rules
         transform.addAll(list.stream().filter(rule -> rule.conditions == null).collect(Collectors.toList()));
 
