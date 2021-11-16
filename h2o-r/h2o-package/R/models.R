@@ -246,7 +246,10 @@ NULL
       x <- params$x
       params$x <- NULL
       args <- .verify_datacols(params$training_frame, x)
-      params$ignored_columns <- args$cols_ignore
+      params$ignored_columns <- setdiff(args$cols_ignore, params$validation_response_column)
+      if (!is.null(params$validation_response_column)) {
+        params$y <- params$validation_response_column
+      }
     }
   }
   # Note: Magic copied from start .h2o.startModelJob
@@ -4022,6 +4025,7 @@ h2o.sdev <- function(object) {
   if (algo == "kmeans" ||
       algo == "glrm" ||
       algo == "pca" ||
+      algo == "isolationforest" ||
       algo == "extendedisolationforest" ||
       (algo == "deeplearning" && !is.null(params$autoencoder) && params$autoencoder)) {
     FALSE
