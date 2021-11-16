@@ -110,6 +110,7 @@ def _estimator_supports_score(cls):
                                 'H2OAutoEncoderEstimator',
                                 'H2OExtendedIsolationForestEstimator',
                                 'H2OGeneralizedLowRankEstimator',
+                                'H2OInfogram',
                                 'H2OIsolationForestEstimator',
                                 'H2OKMeansEstimator',
                                 'H2OMaxRGLMEstimator',
